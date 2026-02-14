@@ -11,6 +11,21 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
+#install launch files
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+#install gz_sim worlds
+install(DIRECTORY worlds
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+#install gz_sim model
+install(DIRECTORY models
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

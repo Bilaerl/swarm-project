@@ -1,0 +1,52 @@
+<robot name="my_robot">
+    <!-- to specify colours -->
+    <material name="orange">
+        <color rgba="1 0.5 0 1"/>
+    </material>
+    <material name="black">
+        <color rgba="0 0 0 1"/>
+    </material>
+
+    <!-- links -->
+    <link name="chassis">
+        <visual>
+            <geometry>
+                <box size="1 0.5 0.1"/>
+            </geometry>
+            <material name="orange"/>
+        </visual>
+    </link>
+
+    <link name="left_wheel">
+        <visual>
+            <geometry>
+                <cylinder length="0.1" radius="0.3"/>
+            </geometry>
+            <origin rpy="-1.57075 0 0" xyz="0 -0.25 0"/>
+            <material name="black"/>
+        </visual>
+    </link>
+
+    <link name="right_wheel">
+        <visual>
+            <geometry>
+                <cylinder length="0.1" radius="0.3"/>
+            </geometry>
+            <origin rpy="1.57075 0 0" xyz="0 0.25 0"/>
+            <material name="black"/>
+        </visual>
+    </link>
+    
+    <!-- joints -->
+    <joint name="left_wheel_to_chassis" type="continuous">
+        <parent link="chassis"/>
+        <child link="left_wheel"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+
+    <joint name="right_wheel_to_chassis" type="continuous">
+        <parent link="chassis"/>
+        <child link="right_wheel"/>
+        <axis xyz="0 1 0"/>
+    </joint>
+</robot>

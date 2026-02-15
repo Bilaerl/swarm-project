@@ -6,7 +6,7 @@ from ament_index_python.packages import get_package_share_directory
 
 
 # gets paths to the gazebo worlds and models in the share directory
-path_prefix = get_package_share_directory('my_robot')
+path_prefix = get_package_share_directory('swarm')
 gz_sim_world_file = os.path.join(path_prefix, 'worlds', 'swarm-world.sdf')
 gz_sim_models_folder = os.path.join(path_prefix, 'models')
 

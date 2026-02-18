@@ -35,14 +35,14 @@
             <geometry>
                 <cylinder length="0.1" radius="0.3"/>
             </geometry>
-            <origin rpy="-1.57075 0 0" xyz="0 -0.25 0"/>
+            <origin rpy="-1.57075 0 0" xyz="0 -0.3 0"/>
             <material name="black"/>
         </visual>
         <collision>
             <geometry>
                 <cylinder length="0.1" radius="0.3"/>
             </geometry>
-            <origin rpy="-1.57075 0 0" xyz="0 -0.25 0"/>
+            <origin rpy="-1.57075 0 0" xyz="0 -0.3 0"/>
         </collision>
         <inertial>
             <mass value="4"/>
@@ -55,14 +55,14 @@
             <geometry>
                 <cylinder length="0.1" radius="0.3"/>
             </geometry>
-            <origin rpy="1.57075 0 0" xyz="0 0.25 0"/>
+            <origin rpy="1.57075 0 0" xyz="0 0.3 0"/>
             <material name="black"/>
         </visual>
         <collision>
             <geometry>
                 <cylinder length="0.1" radius="0.3"/>
             </geometry>
-            <origin rpy="1.57075 0 0" xyz="0 0.25 0"/>
+            <origin rpy="1.57075 0 0" xyz="0 0.3 0"/>
         </collision>
         <inertial>
             <mass value="4"/>
@@ -73,16 +73,14 @@
     <link name="caster_wheel">
         <visual>
             <geometry>
-                <sphere radius="0.15"/>
+                <sphere radius="0.125"/>
             </geometry>
-            <origin rpy="0 0 0" xyz="0.35 0 -0.15"/>
             <material name="black"/>
         </visual>
         <collision>
             <geometry>
-                <sphere radius="0.15"/>
+                <sphere radius="0.125"/>
             </geometry>
-            <origin rpy="0 0 0" xyz="0.35 0 -0.15"/>
         </collision>
         <inertial>
             <mass value="1"/>
@@ -100,18 +98,20 @@
         <parent link="chassis"/>
         <child link="left_wheel"/>
         <axis xyz="0 1 0"/>
+        <origin rpy="0 0 0" xyz="-0.2 0 0"/>
     </joint>
 
     <joint name="right_wheel_to_chassis" type="continuous">
         <parent link="chassis"/>
         <child link="right_wheel"/>
         <axis xyz="0 1 0"/>
+        <origin rpy="0 0 0" xyz="-0.2 0 0"/>
     </joint>
 
     <joint name="caster_wheel_to_chassis" type="continuous">
         <parent link="chassis"/>
         <child link="caster_wheel"/>
-        <axis xyz="0 1 0"/>
-        <origin rpy="0 0 0" xyz="0 0 -0.15"/>        
+        <axis xyz="0 1 0"/>   
+        <origin rpy="0 0 0" xyz="0.35 0 -0.175"/>
     </joint>
 </robot>

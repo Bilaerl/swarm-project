@@ -8,6 +8,10 @@
     </material>
 
     <!-- links -->
+    <!-- base link is a dummy link to serve as the root of the robot -->
+    <!-- this is because a root link should not have inertial properties-->
+    <link name="base_link" />
+
     <link name="chassis">
         <visual>
             <geometry>
@@ -87,6 +91,11 @@
     </link>
     
     <!-- joints -->
+    <joint name="chassis_to_base_link" type="fixed">
+        <parent link="base_link"/>
+        <child link="chassis"/>
+    </joint>
+
     <joint name="left_wheel_to_chassis" type="continuous">
         <parent link="chassis"/>
         <child link="left_wheel"/>

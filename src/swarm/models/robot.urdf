@@ -30,7 +30,7 @@
         </inertial>
     </link>
 
-    <link name="left_wheel">
+    <link name="right_wheel">
         <visual>
             <geometry>
                 <cylinder length="0.1" radius="0.3"/>
@@ -50,7 +50,7 @@
         </inertial>
     </link>
 
-    <link name="right_wheel">
+    <link name="left_wheel">
         <visual>
             <geometry>
                 <cylinder length="0.1" radius="0.3"/>
@@ -114,4 +114,18 @@
         <axis xyz="0 1 0"/>   
         <origin rpy="0 0 0" xyz="0.35 0 -0.175"/>
     </joint>
+
+    <gazebo>
+        <!--diff drive plugin-->
+        <plugin
+            filename="gz-sim-diff-drive-system"
+            name="gz::sim::systems::DiffDrive">
+            <left_joint>left_wheel_to_chassis</left_joint>
+            <right_joint>right_wheel_to_chassis</right_joint>
+            <wheel_separation>0.6</wheel_separation>
+            <wheel_radius>0.3</wheel_radius>
+            <odom_publish_frequency>5</odom_publish_frequency>
+            <topic>cmd_vel</topic>
+        </plugin>
+    </gazebo>
 </robot>

@@ -16,6 +16,8 @@ gz_sim_models_folder = os.path.join(path_prefix, "models")
 gz_sim_package_dir = get_package_share_directory("ros_gz_sim")
 gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.launch.py")
 
+urdf_file_path = os.path.join(path_prefix, "models", "robot.urdf")
+
 
 def generate_launch_description():
     # needed so gazebo can find the swarm world and models when launched
@@ -33,7 +35,35 @@ def generate_launch_description():
         }.items()
     )
 
+    # creates a robot_description topic with the contents of robot.urdf
+    robot_state_publisher_node = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        name="robot_state_publisher",
+        parameters=[{
+            "robot_description": open(urdf_file_path).read()
+        }],
+        output="screen"
+    )
+
+    # spawn robot in gazebo via the robot_description topic
+    robot_spawn_node = Node(
+        package="ros_gz_sim",
+        executable="create",
+        name="robot_spawn_node",
+        arguments=[
+            "-topic", "robot_description",
+            "-name", "my_robot",
+            "-x", "0",
+            "-y", "0",
+            "-z", "1.56"
+        ],
+        output="screen"
+    )
+
     return LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
+        robot_state_publisher_node,
+        robot_spawn_node
     ])

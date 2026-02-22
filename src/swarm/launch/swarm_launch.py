@@ -61,9 +61,24 @@ def generate_launch_description():
         output="screen"
     )
 
+    ros_gz_bridge_node = Node(
+        package="ros_gz_bridge",
+        executable="parameter_bridge",
+        name="ros_gz_bridge_node",
+        arguments=[
+            "/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image",
+            "/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+            "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
+            "/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model",
+            "/model/my_robot/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
+        ],
+        output="screen"
+    )
+
     return LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
         robot_state_publisher_node,
-        robot_spawn_node
+        robot_spawn_node,
+        ros_gz_bridge_node,
     ])

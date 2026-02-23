@@ -72,6 +72,9 @@ def generate_launch_description():
             "/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model",
             "/model/my_robot/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
         ],
+        remappings=[
+            ("/model/my_robot/tf", "/tf"),
+        ],
         output="screen"
     )
 

@@ -26,10 +26,6 @@ install(DIRECTORY models
   DESTINATION share/${PROJECT_NAME}/
 )
 
-#install rviz config
-install(DIRECTORY rviz
-  DESTINATION share/${PROJECT_NAME}/
-)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

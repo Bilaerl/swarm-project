@@ -17,6 +17,7 @@ gz_sim_package_dir = get_package_share_directory("ros_gz_sim")
 gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.launch.py")
 
 urdf_file_path = os.path.join(path_prefix, "models", "robot.urdf")
+rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
 
 
 def generate_launch_description():
@@ -78,10 +79,19 @@ def generate_launch_description():
         output="screen"
     )
 
+    rviz_node = Node(
+        package="rviz2",
+        executable="rviz2",
+        name="rviz",
+        arguments=["-d", rviz_config_file_path],
+        output="screen"
+    )
+
     return LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
         robot_state_publisher_node,
         robot_spawn_node,
         ros_gz_bridge_node,
+        rviz_node,
     ])

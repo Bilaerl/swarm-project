@@ -101,6 +101,15 @@
             </geometry>
         </collision>
     </link>
+
+    <link name="lidar_link">
+        <visual>
+            <geometry>
+                <cylinder radius="0.1" length="0.2"/>
+            </geometry>
+            <material name="orange" />
+        </visual>
+    </link>
     
     <!-- joints -->
     <joint name="chassis_to_base_link" type="fixed">
@@ -135,6 +144,12 @@
         <origin rpy="0 0 0" xyz="0.4 0 0.1"/>
     </joint>
 
+    <joint name="lidar_joint" type="fixed">
+        <parent link="chassis"/>
+        <child link="lidar_link"/>
+        <origin rpy="0 0 0" xyz="0 0 0.1"/>        
+    </joint>
+
     <gazebo>
         <!--diff drive plugin-->
         <plugin filename="gz-sim-diff-drive-system"
@@ -167,6 +182,7 @@
             <update_rate>10</update_rate>
             <topic>camera/image_raw</topic>
             <gz_frame_id>camera_link</gz_frame_id>
+            <frame_id>camera_link</frame_id>
             <camera>
                 <horizontal_fov>1.089</horizontal_fov>
                 <image>
@@ -179,6 +195,39 @@
                     <far>8.0</far>
                 </clip>
             </camera>
+        </sensor>
+    </gazebo>
+
+    <gazebo reference="lidar_link">
+        <sensor name='gpu_lidar' type='gpu_lidar'>
+            <pose>0 0 0 0 0 0</pose>
+            <topic>scan</topic>
+            <update_rate>10</update_rate>
+            <ray>
+                <scan>
+                    <horizontal>
+                        <samples>640</samples>
+                        <resolution>1</resolution>
+                        <min_angle>-1.396263</min_angle>
+                        <max_angle>1.396263</max_angle>
+                    </horizontal>
+                    <vertical>
+                        <samples>1</samples>
+                        <resolution>0.01</resolution>
+                        <min_angle>0</min_angle>
+                        <max_angle>0</max_angle>
+                    </vertical>
+                </scan>
+                <range>
+                    <min>0.08</min>
+                    <max>10.0</max>
+                    <resolution>0.01</resolution>
+                </range>
+            </ray>
+            <always_on>1</always_on>
+            <gz_frame_id>lidar_link</gz_frame_id>
+            <frame_id>lidar_link</frame_id>
+            <visualize>true</visualize>
         </sensor>
     </gazebo>
 </robot>

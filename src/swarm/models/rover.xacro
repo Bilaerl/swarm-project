@@ -16,7 +16,8 @@
     <xacro:property name="chassis_height" value="0.3"/>
     <xacro:property name="wheel_mass" value="2"/>
     <xacro:property name="chassis_mass" value="10"/>
-    <xacro:property name="camera_size" value="0.01"/>
+    <xacro:property name="camera_size" value="0.03"/>
+    <xacro:property name="camera_thickness" value="0.01"/>
     <xacro:property name="lidar_size" value="0.1"/>
 
     <!-- macros -->
@@ -98,18 +99,20 @@
     <link name="camera_link">
         <visual>
             <geometry>
-                <box size="${camera_size} ${camera_size} ${camera_size}"/>
+                <box size="${camera_thickness} ${camera_size} ${camera_size}"/>
             </geometry>
             <material name="black"/>
         </visual>
         <collision>
             <geometry>
-                <box size="${camera_size} ${camera_size} ${camera_size}"/>
+                <box size="${camera_thickness} ${camera_size} ${camera_size}"/>
             </geometry>
-            <xacro:box_inertia mass="0.001" l="${camera_size}" w="${camera_size}" h="${camera_size}"/>
+            <xacro:box_inertia mass="0.001" l="${camera_thickness}" w="${camera_size}" h="${camera_size}"/>
         </collision>
     </link>
 
+    <link name="camera_link_optical" />
+        
     <link name="lidar_link">
         <visual>
             <geometry>
@@ -140,7 +143,13 @@
     <joint name="camera_link_joint" type="fixed">
         <parent link="chassis"/>
         <child link="camera_link"/>
-        <origin rpy="0.0 0.0 0.0" xyz="${chassis_length/2 + camera_size/2} 0.0 0.0"/>
+        <origin rpy="0.0 0.0 0.0" xyz="${chassis_length/2 + camera_thickness} 0.0 ${chassis_height/4}"/>
+    </joint>
+
+    <joint name="camera_link_optical_joint" type="fixed">
+        <parent link="camera_link"/>
+        <child link="camera_link_optical"/>
+        <origin rpy="${-pi/2} 0.0 ${-pi/2}" xyz="${camera_thickness} 0.0 0.0"/>
     </joint>
 
     <joint name="lidar_link_joint" type="fixed">
@@ -149,13 +158,13 @@
         <origin rpy="0.0 0.0 0.0" xyz="${chassis_length/2 - 0.15} 0.0 ${chassis_height/2 + lidar_size/2}"/>
     </joint>
 
-    <!-- gazebo plugins -->
     <!-- wheels friction -->
     <xacro:friction_coefficients link_name="rear_left_wheel" />
     <xacro:friction_coefficients link_name="rear_right_wheel" />
     <xacro:friction_coefficients link_name="front_left_wheel" />
     <xacro:friction_coefficients link_name="front_right_wheel" />
     
+    <!-- gazebo plugins -->
     <xacro:include filename="$(find swarm)/models/rover.gazebo" />
     
 </robot>

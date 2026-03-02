@@ -1,6 +1,9 @@
 import os
+
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
+from launch.substitutions import Command
 from launch.actions import SetEnvironmentVariable, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
@@ -16,7 +19,7 @@ gz_sim_models_folder = os.path.join(path_prefix, "models")
 gz_sim_package_dir = get_package_share_directory("ros_gz_sim")
 gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.launch.py")
 
-urdf_file_path = os.path.join(path_prefix, "models", "robot.urdf")
+urdf_xacro_file_path = os.path.join(path_prefix, "models", "rover.xacro")
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
 
 
@@ -42,7 +45,8 @@ def generate_launch_description():
         executable="robot_state_publisher",
         name="robot_state_publisher",
         parameters=[{
-            "robot_description": open(urdf_file_path).read()
+            "robot_description": ParameterValue(
+                Command(["xacro ", urdf_xacro_file_path]), value_type=str)
         }],
         output="screen"
     )

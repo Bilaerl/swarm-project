@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="my_rover">
+    <!-- to specify colours -->
+    <material name="orange">
+        <color rgba="1 0.5 0 1"/>
+    </material>
+    <material name="black">
+        <color rgba="0 0 0 1"/>
+    </material>
+
+    <!-- properties -->
+    <xacro:property name="wheel_radius" value="0.15"/>
+    <xacro:property name="wheel_width" value="0.05"/>
+    <xacro:property name="chassis_length" value="1.0"/>
+    <xacro:property name="chassis_width" value="0.5"/>
+    <xacro:property name="chassis_height" value="0.3"/>
+    <xacro:property name="wheel_mass" value="2"/>
+    <xacro:property name="chassis_mass" value="10"/>
+    <xacro:property name="camera_size" value="0.01"/>
+    <xacro:property name="lidar_size" value="0.1"/>
+
+    <!-- macros -->
+    <xacro:macro name="box_inertia" params="mass l w h">
+        <inertial>
+            <mass value="${mass}"/>
+            <inertia ixx="${mass * (h*h + w*w) / 12}" ixy="0" ixz="0" iyy="${mass * (l*l + h*h) / 12}" iyz="0" izz="${mass * (l*l + w*w) / 12}"/>
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="cylinder_inertia" params="mass radius width">
+        <inertial>
+            <mass value="${mass}"/>
+            <inertia ixx="${0.25 * mass * radius * radius + (1/12) * mass * width * width}" ixy="0" ixz="0" iyy="${0.25 * mass * radius * radius + (1/12) * mass * width * width}" iyz="0" izz="${0.5 * mass * radius * radius}"/>
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="wheel" params="name wheel_radius wheel_width wheel_mass">
+        <link name="${name}">
+            <visual>
+                <geometry>
+                    <cylinder length="${wheel_width}" radius="${wheel_radius}"/>
+                </geometry>
+                <origin rpy="-1.57075 0 0" xyz="0 0 0"/>
+                <material name="black"/>
+            </visual>
+            <collision>
+                <geometry>
+                    <cylinder length="${wheel_width}" radius="${wheel_radius}"/>
+                </geometry>
+                <origin rpy="-1.57075 0 0" xyz="0 0 0"/>
+            </collision>
+            <xacro:cylinder_inertia mass="${wheel_mass}" radius="${wheel_radius}" width="${wheel_width}"/>
+        </link>
+    </xacro:macro>
+
+    <xacro:macro name="wheel_joints" params="wheel_name x y z">
+        <joint name="${wheel_name}_joint" type="continuous">
+            <parent link="chassis"/>
+            <child link="${wheel_name}"/>
+            <origin rpy="0 0 0" xyz="${x} ${y} ${z}"/>
+            <axis xyz="0 1 0"/>
+        </joint>
+    </xacro:macro>
+
+    <xacro:macro name="friction_coefficients" params="link_name">
+        <gazebo reference="${link_name}">
+            <mu1>1.0</mu1> <!-- High friction for forward traction -->
+            <mu2>0.5</mu2> <!-- Low friction for sideways skidding -->
+            <fdir1>1 0 0</fdir1> <!-- Rolling direction (X-axis of the link) -->
+            <slip1>0.0</slip1>
+            <slip2>0.1</slip2> <!-- Allow sliding on the lateral axis -->
+        </gazebo>
+    </xacro:macro>
+
+    <!-- links -->
+    <link name="base_link" />
+
+    <link name="chassis">
+        <visual>
+            <geometry>
+                <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+            </geometry>
+            <material name="orange"/>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="${chassis_length} ${chassis_width} ${chassis_height}"/>
+            </geometry>
+        </collision>
+        <xacro:box_inertia mass="${chassis_mass}" l="${chassis_length}" w="${chassis_width}" h="${chassis_height}"/>
+    </link>
+
+    <xacro:wheel name="rear_left_wheel" wheel_radius="${wheel_radius}" wheel_width="${wheel_width}" wheel_mass="${wheel_mass}"/>
+    <xacro:wheel name="rear_right_wheel" wheel_radius="${wheel_radius}" wheel_width="${wheel_width}" wheel_mass="${wheel_mass}"/>
+    <xacro:wheel name="front_left_wheel" wheel_radius="${wheel_radius}" wheel_width="${wheel_width}" wheel_mass="${wheel_mass}"/>
+    <xacro:wheel name="front_right_wheel" wheel_radius="${wheel_radius}" wheel_width="${wheel_width}" wheel_mass="${wheel_mass}"/>
+
+    <link name="camera_link">
+        <visual>
+            <geometry>
+                <box size="${camera_size} ${camera_size} ${camera_size}"/>
+            </geometry>
+            <material name="black"/>
+        </visual>
+        <collision>
+            <geometry>
+                <box size="${camera_size} ${camera_size} ${camera_size}"/>
+            </geometry>
+            <xacro:box_inertia mass="0.001" l="${camera_size}" w="${camera_size}" h="${camera_size}"/>
+        </collision>
+    </link>
+
+    <link name="lidar_link">
+        <visual>
+            <geometry>
+                <cylinder radius="${lidar_size}" length="${lidar_size}"/>
+            </geometry>
+            <material name="orange" />
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder radius="${lidar_size}" length="${lidar_size}"/>
+            </geometry>
+            <xacro:cylinder_inertia mass="0.1" radius="${lidar_size}" width="${lidar_size}"/>
+        </collision>
+    </link>
+    
+
+    <!-- joint -->
+    <joint name="chassis_to_base_link_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="chassis"/>
+    </joint>
+
+    <xacro:wheel_joints wheel_name="front_left_wheel" x="${chassis_length/2 - wheel_radius}" y="${chassis_width/2 + wheel_width}" z="${-chassis_height/2}"/>
+    <xacro:wheel_joints wheel_name="front_right_wheel" x="${chassis_length/2 - wheel_radius}" y="${-chassis_width/2 - wheel_width}" z="${-chassis_height/2}"/>
+    <xacro:wheel_joints wheel_name="rear_left_wheel" x="${-chassis_length/2 + wheel_radius}" y="${chassis_width/2 + wheel_width}" z="${-chassis_height/2}"/>
+    <xacro:wheel_joints wheel_name="rear_right_wheel" x="${-chassis_length/2 + wheel_radius}" y="${-chassis_width/2 - wheel_width}" z="${-chassis_height/2}"/>
+
+    <joint name="camera_link_joint" type="fixed">
+        <parent link="chassis"/>
+        <child link="camera_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="${chassis_length/2 + camera_size/2} 0.0 0.0"/>
+    </joint>
+
+    <joint name="lidar_link_joint" type="fixed">
+        <parent link="chassis"/>
+        <child link="lidar_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="${chassis_length/2 - 0.15} 0.0 ${chassis_height/2 + lidar_size/2}"/>
+    </joint>
+
+    <!-- gazebo plugins -->
+    <!-- wheels friction -->
+    <xacro:friction_coefficients link_name="rear_left_wheel" />
+    <xacro:friction_coefficients link_name="rear_right_wheel" />
+    <xacro:friction_coefficients link_name="front_left_wheel" />
+    <xacro:friction_coefficients link_name="front_right_wheel" />
+    
+    <xacro:include filename="$(find swarm)/models/rover.gazebo" />
+    
+</robot>

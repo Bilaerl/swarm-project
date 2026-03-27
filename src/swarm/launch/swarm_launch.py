@@ -108,6 +108,17 @@ def generate_launch_description():
         output="screen"
     )
 
+    slam_lifecycle_manager_node = Node(
+        package='nav2_lifecycle_manager',
+        executable='lifecycle_manager',
+        name='slam_lifecycle_manager',
+        parameters=[{
+            'use_sim_time': True,
+            'autostart': True,
+            'node_names': ['slam_toolbox'] # Must match the 'name' in your slam_node
+        }]
+    )
+
     return LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
@@ -116,4 +127,5 @@ def generate_launch_description():
         ros_gz_bridge_node,
         rviz_node,
         slam_node,
+        slam_lifecycle_manager_node,
     ])

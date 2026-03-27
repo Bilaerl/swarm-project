@@ -10,7 +10,7 @@
             <right_joint>rear_right_wheel_joint</right_joint>
             <wheel_separation>${chassis_width + wheel_width/2}</wheel_separation>
             <wheel_radius>${wheel_radius}</wheel_radius>
-            <odom_publish_frequency>5</odom_publish_frequency>
+            <odom_publish_frequency>${odometry_update_rate}</odom_publish_frequency>
             <topic>cmd_vel</topic>
             <odom_frame>odom</odom_frame>
             <child_frame_id>base_link</child_frame_id>
@@ -24,6 +24,11 @@
             <joint_name>rear_left_wheel_joint</joint_name>
             <joint_name>front_right_wheel_joint</joint_name>
             <joint_name>rear_right_wheel_joint</joint_name>
+        </plugin>
+
+        <!-- imu sensor plugin -->
+        <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu">
         </plugin>
     </gazebo>
 
@@ -81,6 +86,17 @@
             <gz_frame_id>lidar_link</gz_frame_id>
             <frame_id>lidar_link</frame_id>
             <visualize>true</visualize>
+        </sensor>
+    </gazebo>
+
+    <gazebo reference="chassis">
+        <sensor name="imu_sensor" type="imu">
+            <always_on>1</always_on>
+            <update_rate>${odometry_update_rate}</update_rate>
+            <visualize>true</visualize>
+            <topic>imu</topic>
+            <gz_frame_id>chassis</gz_frame_id>
+            <frame_id>chassis</frame_id>
         </sensor>
     </gazebo>
 </robot>

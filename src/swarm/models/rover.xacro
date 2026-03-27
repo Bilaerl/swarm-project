@@ -19,6 +19,7 @@
     <xacro:property name="camera_size" value="0.03"/>
     <xacro:property name="camera_thickness" value="0.01"/>
     <xacro:property name="lidar_size" value="0.1"/>
+    <xacro:property name="odometry_update_rate" value="5"/>
 
     <!-- macros -->
     <xacro:macro name="box_inertia" params="mass l w h">

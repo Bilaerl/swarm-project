@@ -21,6 +21,7 @@ gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.
 
 urdf_xacro_file_path = os.path.join(path_prefix, "models", "rover.xacro")
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
+slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
 
 
 def generate_launch_description():
@@ -46,7 +47,8 @@ def generate_launch_description():
         name="robot_state_publisher",
         parameters=[{
             "robot_description": ParameterValue(
-                Command(["xacro ", urdf_xacro_file_path]), value_type=str)
+                Command(["xacro ", urdf_xacro_file_path]), value_type=str),
+            "use_sim_time": True
         }],
         output="screen"
     )
@@ -71,6 +73,7 @@ def generate_launch_description():
         executable="parameter_bridge",
         name="ros_gz_bridge_node",
         arguments=[
+            "clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
             "/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image",
             "/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
             "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
@@ -81,6 +84,9 @@ def generate_launch_description():
         remappings=[
             ("/model/my_robot/tf", "/tf"),
         ],
+        parameters=[{
+            "use_sim_time": True
+        }],
         output="screen"
     )
 
@@ -91,6 +97,17 @@ def generate_launch_description():
         output="screen"
     )
 
+    slam_node = Node(
+        package="slam_toolbox",
+        executable="async_slam_toolbox_node",
+        name="slam_toolbox",
+        parameters=[
+            slam_toolbox_config_file_path,
+            {"use_sim_time": True}
+        ],
+        output="screen"
+    )
+
     return LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
@@ -98,4 +115,5 @@ def generate_launch_description():
         robot_spawn_node,
         ros_gz_bridge_node,
         rviz_node,
+        slam_node,
     ])

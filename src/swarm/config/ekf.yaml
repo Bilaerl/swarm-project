@@ -1,0 +1,27 @@
+ekf_filter_node:
+  ros__parameters:
+    use_sim_time: true
+    frequency: 5.0
+    two_d_mode: true
+    publish_tf: true
+
+    map_frame: map              
+    odom_frame: my_robot/odom            
+    base_link_frame: base_link  
+    world_frame: my_robot/odom           
+
+    # Wheel Odometry (from Gazebo DiffDrive plugin)
+    odom0: /odom
+    odom0_config: [true,  true,  false, # X, Y, Z
+                   false, false, false,  # Roll, Pitch, Yaw
+                   true,  true, false, # VX, VY, VZ
+                   false, false, false,  # Vroll, Vpitch, Vyaw
+                   false, false, false] # Ax, Ay, Az
+
+    # IMU Data (from IMU sensor in Gazebo)
+    imu0: /imu
+    imu0_config: [true, true, false, # X, Y, Z
+                  true, true, true,  # Roll, Pitch, Yaw (Trust Yaw)
+                  true, true, false, # VX, VY, VZ
+                  true, true, true,  # Vroll, Vpitch, Vyaw (Trust Vyaw)
+                  false, false, false] # Ax, Ay, Az

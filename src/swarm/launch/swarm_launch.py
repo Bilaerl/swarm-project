@@ -22,6 +22,7 @@ gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.
 urdf_xacro_file_path = os.path.join(path_prefix, "models", "rover.xacro")
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
 slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
+ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
 
 
 def generate_launch_description():
@@ -79,11 +80,13 @@ def generate_launch_description():
             "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
             "/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model",
             "/model/my_robot/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
+            "/model/my_robot/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry",
             "/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
             "/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
         ],
         remappings=[
             ("/model/my_robot/tf", "/tf"),
+            ("/model/my_robot/odometry", "/odom"),
         ],
         parameters=[{
             "use_sim_time": True
@@ -120,6 +123,17 @@ def generate_launch_description():
         }]
     )
 
+    ekf_filter_node = Node(
+        package="robot_localization",
+        executable="ekf_node",
+        name="ekf_filter_node",
+        parameters=[
+            ekf_config_file_path,
+            {"use_sim_time": True}
+        ],
+        output="screen"
+    )
+
     return LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
@@ -127,6 +141,7 @@ def generate_launch_description():
         robot_spawn_node,
         ros_gz_bridge_node,
         rviz_node,
+        ekf_filter_node,
         slam_node,
         slam_lifecycle_manager_node,
     ])

@@ -19,7 +19,7 @@ gz_sim_models_folder = os.path.join(path_prefix, "models")
 gz_sim_package_dir = get_package_share_directory("ros_gz_sim")
 gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.launch.py")
 
-urdf_xacro_file_path = os.path.join(path_prefix, "models", "rover.xacro")
+urdf_xacro_file_path = os.path.join(path_prefix, "models", "my_rover", "my_rover.xacro")
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
 slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
 ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")

@@ -52,12 +52,12 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         name="robot_state_publisher",
-        namespace= rover_name,
+        namespace=rover_name,
         parameters=[{
             "robot_description": ParameterValue(
                 Command(["xacro ", urdf_xacro_file_path, " robot_name:=", rover_name]), value_type=str),
-            "use_sim_time": True,
             "frame_prefix": [rover_name, "/"],  # so that each tf frame will be prefixed to differentiate between instances
+            "use_sim_time": True,
         }],
         output="screen"
     )
@@ -77,30 +77,24 @@ def generate_launch_description():
         output="screen"
     )
 
-    # ros_gz_bridge_node = Node(
-    #     package="ros_gz_bridge",
-    #     executable="parameter_bridge",
-    #     name="ros_gz_bridge_node",
-    #     arguments=[
-    #         "clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
-    #         "/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image",
-    #         "/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
-    #         "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
-    #         "/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model",
-    #         "/model/my_robot/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
-    #         "/model/my_robot/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry",
-    #         "/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-    #         "/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-    #     ],
-    #     remappings=[
-    #         ("/model/my_robot/tf", "/tf"),
-    #         ("/model/my_robot/odometry", "/odom"),
-    #     ],
-    #     parameters=[{
-    #         "use_sim_time": True
-    #     }],
-    #     output="screen"
-    # )
+    ros_gz_bridge_node = Node(
+        package="ros_gz_bridge",
+        executable="parameter_bridge",
+        name="ros_gz_bridge_node",
+        namespace=rover_name,
+        arguments=[
+            ["/", rover_name ,"/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image"],
+            ["/", rover_name ,"/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo"],
+            ["/", rover_name ,"/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist"],
+            ["/", rover_name ,"/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model"],
+            ["/", rover_name ,"/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V"],
+            ["/", rover_name ,"/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry"],
+            ["/", rover_name ,"/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan"],
+            ["/", rover_name ,"/imu@sensor_msgs/msg/Imu[gz.msgs.IMU"],
+        ],
+        parameters=[{"use_sim_time": True}],
+        output="screen"
+    )
 
     # rviz_node = Node(
     #     package="rviz2",
@@ -149,7 +143,7 @@ def generate_launch_description():
         rover_z_arg,
         robot_state_publisher_node,
         robot_spawn_node,
-        # ros_gz_bridge_node,
+        ros_gz_bridge_node,
         # rviz_node,
         # ekf_filter_node,
         # slam_node,

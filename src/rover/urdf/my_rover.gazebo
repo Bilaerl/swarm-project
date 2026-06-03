@@ -11,7 +11,9 @@
             <wheel_separation>${chassis_width + wheel_width/2}</wheel_separation>
             <wheel_radius>${wheel_radius}</wheel_radius>
             <odom_publish_frequency>${odometry_update_rate}</odom_publish_frequency>
-            <topic>cmd_vel</topic>
+            <topic>$(arg robot_name)/cmd_vel</topic>
+            <odom_topic>$(arg robot_name)/odom</odom_topic>
+            <tf_topic>$(arg robot_name)/tf</tf_topic>
             <odom_frame>odom</odom_frame>
             <child_frame_id>base_link</child_frame_id>
         </plugin>
@@ -19,7 +21,7 @@
         <!-- joint state publisher plugin -->
         <plugin filename="gz-sim-joint-state-publisher-system"
                 name="gz::sim::systems::JointStatePublisher">
-            <topic>joint_states</topic>
+            <topic>$(arg robot_name)/joint_states</topic>
             <joint_name>front_left_wheel_joint</joint_name>
             <joint_name>rear_left_wheel_joint</joint_name>
             <joint_name>front_right_wheel_joint</joint_name>
@@ -32,13 +34,13 @@
         </plugin>
     </gazebo>
 
-    <!-- camera plugin -->
+    <!-- camera sensor -->
     <gazebo reference="camera_link">
         <sensor name="camera" type="camera">
             <pose> 0 0 0 0 0 0 </pose>
             <visualize>true</visualize>
             <update_rate>10</update_rate>
-            <topic>camera/image_raw</topic>
+            <topic>$(arg robot_name)/camera/image_raw</topic>
             <gz_frame_id>camera_link_optical</gz_frame_id> <!-- added so gz publishes to link as expected by ros2-->
             <frame_id>camera_link_optical</frame_id>    <!-- a newer version of the above tag. For GZ Ionic upwards-->
             <camera>
@@ -56,10 +58,11 @@
         </sensor>
     </gazebo>
 
+    <!-- lidar sensor -->
     <gazebo reference="lidar_link">
         <sensor name='gpu_lidar' type='gpu_lidar'>
             <pose>0 0 0 0 0 0</pose>
-            <topic>scan</topic>
+            <topic>$(arg robot_name)/scan</topic>
             <update_rate>10</update_rate>
             <ray>
                 <scan>
@@ -89,12 +92,13 @@
         </sensor>
     </gazebo>
 
+    <!-- imu sensor -->
     <gazebo reference="chassis">
         <sensor name="imu_sensor" type="imu">
             <always_on>1</always_on>
             <update_rate>${odometry_update_rate}</update_rate>
             <visualize>true</visualize>
-            <topic>imu</topic>
+            <topic>$(arg robot_name)/imu</topic>
             <gz_frame_id>chassis</gz_frame_id>
             <frame_id>chassis</frame_id>
         </sensor>

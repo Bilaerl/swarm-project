@@ -8,6 +8,9 @@
         <color rgba="0 0 0 1"/>
     </material>
 
+    <!-- argument: use for sensor topic namespacing -->
+    <xacro:arg name="robot_name" default="my_rover"/>
+
     <!-- properties -->
     <xacro:property name="wheel_radius" value="0.15"/>
     <xacro:property name="wheel_width" value="0.05"/>
@@ -166,6 +169,6 @@
     <xacro:friction_coefficients link_name="front_right_wheel" />
     
     <!-- gazebo plugins -->
-    <xacro:include filename="$(find swarm)/models/rover.gazebo" />
+    <xacro:include filename="$(find rover)/urdf/my_rover.gazebo" />
     
 </robot>

@@ -55,8 +55,9 @@ def generate_launch_description():
         namespace= rover_name,
         parameters=[{
             "robot_description": ParameterValue(
-                Command(["xacro ", urdf_xacro_file_path]), value_type=str),
-            "use_sim_time": True
+                Command(["xacro ", urdf_xacro_file_path, " robot_name:=", rover_name]), value_type=str),
+            "use_sim_time": True,
+            "frame_prefix": [rover_name, "/"],  # so that each tf frame will be prefixed to differentiate between instances
         }],
         output="screen"
     )

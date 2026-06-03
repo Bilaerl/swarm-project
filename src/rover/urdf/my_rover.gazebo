@@ -14,8 +14,8 @@
             <topic>$(arg robot_name)/cmd_vel</topic>
             <odom_topic>$(arg robot_name)/odom</odom_topic>
             <tf_topic>$(arg robot_name)/tf</tf_topic>
-            <odom_frame>odom</odom_frame>
-            <child_frame_id>base_link</child_frame_id>
+            <odom_frame>$(arg robot_name)/odom</odom_frame>
+            <child_frame_id>$(arg robot_name)/base_link</child_frame_id>
         </plugin>
 
         <!-- joint state publisher plugin -->
@@ -41,8 +41,8 @@
             <visualize>true</visualize>
             <update_rate>10</update_rate>
             <topic>$(arg robot_name)/camera/image_raw</topic>
-            <gz_frame_id>camera_link_optical</gz_frame_id> <!-- added so gz publishes to link as expected by ros2-->
-            <frame_id>camera_link_optical</frame_id>    <!-- a newer version of the above tag. For GZ Ionic upwards-->
+            <gz_frame_id>$(arg robot_name)/camera_link_optical</gz_frame_id> <!-- added so gz publishes to link as expected by ros2-->
+            <frame_id>$(arg robot_name)/camera_link_optical</frame_id>    <!-- a newer version of the above tag. For GZ Ionic upwards-->
             <camera>
                 <horizontal_fov>1.089</horizontal_fov>
                 <image>
@@ -86,8 +86,8 @@
                 </range>
             </ray>
             <always_on>1</always_on>
-            <gz_frame_id>lidar_link</gz_frame_id>
-            <frame_id>lidar_link</frame_id>
+            <gz_frame_id>$(arg robot_name)/lidar_link</gz_frame_id>
+            <frame_id>$(arg robot_name)/lidar_link</frame_id>
             <visualize>true</visualize>
         </sensor>
     </gazebo>
@@ -99,8 +99,8 @@
             <update_rate>${odometry_update_rate}</update_rate>
             <visualize>true</visualize>
             <topic>$(arg robot_name)/imu</topic>
-            <gz_frame_id>chassis</gz_frame_id>
-            <frame_id>chassis</frame_id>
+            <gz_frame_id>$(arg robot_name)/chassis</gz_frame_id>
+            <frame_id>$(arg robot_name)/chassis</frame_id>
         </sensor>
     </gazebo>
 </robot>

@@ -44,119 +44,30 @@ def generate_launch_description():
         }.items()
     )
 
-    # using the ros_gz_sim package to launch gazebo
-    rover_launch = IncludeLaunchDescription(
-        launch_description_source=PythonLaunchDescriptionSource(rover_launch_file),
-        launch_arguments={
-            "rover_name": "my_rover1",
-            "x": "0",
-            "y": "0",
-            "z": "1.56",
-        }.items()
-    )
-
-    # # creates a robot_description topic with the contents of robot.urdf
-    # robot_state_publisher_node = Node(
-    #     package="robot_state_publisher",
-    #     executable="robot_state_publisher",
-    #     name="robot_state_publisher",
-    #     parameters=[{
-    #         "robot_description": ParameterValue(
-    #             Command(["xacro ", urdf_xacro_file_path]), value_type=str),
-    #         "use_sim_time": True
-    #     }],
-    #     output="screen"
-    # )
-
-    # # spawn robot in gazebo via the robot_description topic
-    # robot_spawn_node = Node(
-    #     package="ros_gz_sim",
-    #     executable="create",
-    #     name="robot_spawn_node",
-    #     arguments=[
-    #         "-topic", "robot_description",
-    #         "-name", "my_robot",
-    #         "-x", "0",
-    #         "-y", "0",
-    #         "-z", "1.56"
-    #     ],
-    #     output="screen"
-    # )
-
-    # ros_gz_bridge_node = Node(
-    #     package="ros_gz_bridge",
-    #     executable="parameter_bridge",
-    #     name="ros_gz_bridge_node",
-    #     arguments=[
-    #         "clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
-    #         "/camera/image_raw@sensor_msgs/msg/Image[gz.msgs.Image",
-    #         "/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
-    #         "/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist",
-    #         "/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model",
-    #         "/model/my_robot/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
-    #         "/model/my_robot/odometry@nav_msgs/msg/Odometry[gz.msgs.Odometry",
-    #         "/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-    #         "/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-    #     ],
-    #     remappings=[
-    #         ("/model/my_robot/tf", "/tf"),
-    #         ("/model/my_robot/odometry", "/odom"),
-    #     ],
-    #     parameters=[{
-    #         "use_sim_time": True
-    #     }],
-    #     output="screen"
-    # )
-
-    # rviz_node = Node(
-    #     package="rviz2",
-    #     executable="rviz2",
-    #     name="rviz",
-    #     output="screen"
-    # )
-
-    # slam_node = Node(
-    #     package="slam_toolbox",
-    #     executable="async_slam_toolbox_node",
-    #     name="slam_toolbox",
-    #     parameters=[
-    #         slam_toolbox_config_file_path,
-    #         {"use_sim_time": True}
-    #     ],
-    #     output="screen"
-    # )
-
-    # slam_lifecycle_manager_node = Node(
-    #     package='nav2_lifecycle_manager',
-    #     executable='lifecycle_manager',
-    #     name='slam_lifecycle_manager',
-    #     parameters=[{
-    #         'use_sim_time': True,
-    #         'autostart': True,
-    #         'node_names': ['slam_toolbox'] # Must match the 'name' in your slam_node
-    #     }]
-    # )
-
-    # ekf_filter_node = Node(
-    #     package="robot_localization",
-    #     executable="ekf_node",
-    #     name="ekf_filter_node",
-    #     parameters=[
-    #         ekf_config_file_path,
-    #         {"use_sim_time": True}
-    #     ],
-    #     output="screen"
-    # )
-
-    return LaunchDescription([
+    # saved the launch description in a variable instead of just returning it
+    # so a loop can be used to add the rover spawning nodes to it before returning it
+    swarm_launch_description = LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
-        rover_launch,
-        # robot_state_publisher_node,
-        # robot_spawn_node,
-        # ros_gz_bridge_node,
-        # rviz_node,
-        # ekf_filter_node,
-        # slam_node,
-        # slam_lifecycle_manager_node,
     ])
+
+    # configuration for each rover to be added to the swarm
+    swarm_agents_configurations = [
+        {"x":"0", "y":"0", "z":"1.56"},
+        {"x":"0", "y":"1.5", "z":"1.56"},
+    ]
+
+    for num, agent_config in enumerate(swarm_agents_configurations, start=1):
+        rover_launch = IncludeLaunchDescription(
+            launch_description_source=PythonLaunchDescriptionSource(rover_launch_file),
+            launch_arguments={
+                "rover_name": f"my_rover_{num}",
+                "x": agent_config["x"],
+                "y": agent_config["y"],
+                "z": agent_config["z"],
+            }.items()
+        )
+
+        swarm_launch_description.add_action(rover_launch) # add the rover launch to this launch description
+
+    return swarm_launch_description

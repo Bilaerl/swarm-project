@@ -19,10 +19,14 @@ gz_sim_models_folder = os.path.join(path_prefix, "models")
 gz_sim_package_dir = get_package_share_directory("ros_gz_sim")
 gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.launch.py")
 
+# gets the path to the rover launch file in the rover package
 rover_package_dir =  get_package_share_directory("rover")
 rover_launch_file = os.path.join(rover_package_dir, "launch", "rover_launch.py")
 
-urdf_xacro_file_path = os.path.join(path_prefix, "models", "my_rover", "my_rover.xacro")
+# gets the path to the artifact file
+artifact_file_path = os.path.join(path_prefix, "models", "artifact.sdf")
+
+# gets the path to config files in the swarm package
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
 slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
 ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
@@ -51,6 +55,32 @@ def generate_launch_description():
         gz_sim_launch,
     ])
 
+
+    # configuration for each artifact to be added to the swarm
+    # this artifacts are what the rovers will be foraging for in the swarm world
+    artifact_configurations = [
+        {"x":"1", "y":"0", "z":"1.56"},
+        {"x":"1", "y":"1.5", "z":"1.56"},
+    ]
+
+    for num, artifact_config in enumerate(artifact_configurations, start=1):
+        artifact_spawn_node = Node(
+            package="ros_gz_sim",
+            executable="create",
+            name=f"artifact_spawn_node_{num}",
+            arguments=[
+                "-file", artifact_file_path,
+                "-name", f"artifact_{num}",
+                "-x", artifact_config["x"],
+                "-y", artifact_config["y"],
+                "-z", artifact_config["z"],
+            ],
+            output="screen"
+        )
+
+        swarm_launch_description.add_action(artifact_spawn_node) # add the artifact spawn node to this launch description
+
+    
     # configuration for each rover to be added to the swarm
     swarm_agents_configurations = [
         {"x":"0", "y":"0", "z":"1.56"},

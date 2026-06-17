@@ -19,9 +19,8 @@ gz_sim_models_folder = os.path.join(path_prefix, "models")
 gz_sim_package_dir = get_package_share_directory("ros_gz_sim")
 gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.launch.py")
 
-# gets the path to the rover launch file in the rover package
-rover_package_dir =  get_package_share_directory("rover")
-rover_launch_file = os.path.join(rover_package_dir, "launch", "rover_launch.py")
+# gets the path to the rover launch file
+rover_launch_file = os.path.join(path_prefix, "launch", "rover_launch.py")
 
 # gets the path to the artifact file
 artifact_file_path = os.path.join(path_prefix, "models", "artifact.sdf")
@@ -91,7 +90,7 @@ def generate_launch_description():
         rover_launch = IncludeLaunchDescription(
             launch_description_source=PythonLaunchDescriptionSource(rover_launch_file),
             launch_arguments={
-                "rover_name": f"my_rover_{num}",
+                "rover_name": f"rover_{num}",
                 "x": agent_config["x"],
                 "y": agent_config["y"],
                 "z": agent_config["z"],

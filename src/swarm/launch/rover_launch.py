@@ -9,8 +9,8 @@ from ament_index_python.packages import get_package_share_directory
 
 
 # gets paths to rover urdf in the package share directory
-path_prefix = get_package_share_directory("rover")
-urdf_xacro_file_path = os.path.join(path_prefix, "urdf", "my_rover.xacro")
+path_prefix = get_package_share_directory("swarm")
+rover_xacro_file_path = os.path.join(path_prefix, "models", "rover", "rover.xacro")
 
 # slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
 # ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
@@ -25,7 +25,7 @@ def generate_launch_description():
 
     rover_name_arg = DeclareLaunchArgument(
         "rover_name",
-        default_value="my_rover",
+        default_value="rover",
         description="Namespace for the rover"
     )
 
@@ -55,7 +55,7 @@ def generate_launch_description():
         namespace=rover_name,
         parameters=[{
             "robot_description": ParameterValue(
-                Command(["xacro ", urdf_xacro_file_path, " robot_name:=", rover_name]), value_type=str),
+                Command(["xacro ", rover_xacro_file_path, " robot_name:=", rover_name]), value_type=str),
             "frame_prefix": [rover_name, "/"],  # so that each tf frame will be prefixed to differentiate between instances
             "use_sim_time": True,
         }],

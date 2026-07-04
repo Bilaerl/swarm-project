@@ -1,0 +1,5 @@
+float64 artifact_x
+float64 artifact_y
+float64 artifact_z
+---
+bool success

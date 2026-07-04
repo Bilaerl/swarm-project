@@ -20,14 +20,19 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 add_executable(picker src/picker.cpp)
 ament_target_dependencies(picker rclcpp)
 
+add_executable(rover_core src/rover_core.cpp)
+ament_target_dependencies(rover_core rclcpp)
+
 # link the generated service interfaces
 # this approach is used because both service definition and the nodes using it are in the same package
 rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
 target_link_libraries(picker ${cpp_typesupport_target})
+target_link_libraries(rover_core ${cpp_typesupport_target})
 
 # install cpp executables
 install(TARGETS
   picker
+  rover_core
   DESTINATION lib/${PROJECT_NAME}
 )
 

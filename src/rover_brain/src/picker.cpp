@@ -32,6 +32,8 @@ class Picker : public rclcpp::Node
 			
 			// For demonstration, let's assume the artifact is always picked successfully
 			response->success = true;
+			RCLCPP_INFO(this->get_logger(), "Successfully picked artifact at (%.2f, %.2f, %.2f)", 
+				request->artifact_x, request->artifact_y, request->artifact_z);
 		};
 };
 

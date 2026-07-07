@@ -29,6 +29,7 @@ slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_para
 ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
 artifacts_spawn_config_file_path = os.path.join(path_prefix, "config", "artifacts_spawn_config.txt")
 agents_spawn_config_file_path = os.path.join(path_prefix, "config", "agents_spawn_config.txt")
+global_ros_gz_bridge_config_file_path = os.path.join(path_prefix, "config", "global_ros_gz_bridge_config.yaml")
 
 
 def parse_models_spawn_config(model_spawn_config_file_path):
@@ -65,16 +66,27 @@ def generate_launch_description():
         }.items()
     )
 
-    # bridges topics that are not rover specific but for the simulation world as a whole
+    # bridges topics that are not rover specific but for the simulation world as a whole,
+    # uses a bridge config file because arguments approach doesn't work with the entity
+    # removal service
     global_ros_gz_bridge_node = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
         name="global_ros_gz_bridge_node",
-        arguments=[
-            "clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
+        parameters=[
+            {"use_sim_time": True},
+            {"config_file": global_ros_gz_bridge_config_file_path}
         ],
-        parameters=[{"use_sim_time": True}],
         output="screen"
+    )
+
+    # artifact manager node that will track the artifacts in the swarm world
+    artifact_manager_node = Node(
+        package="swarm",
+        executable="artifact_manager",
+        name="artifact_manager_node",
+        output="screen",
+        parameters=[{"artifacts_spawn_config_file_path": artifacts_spawn_config_file_path}]
     )
 
     # saved the launch description in a variable instead of just returning it
@@ -82,7 +94,8 @@ def generate_launch_description():
     swarm_launch_description = LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
-        global_ros_gz_bridge_node
+        artifact_manager_node,
+        global_ros_gz_bridge_node,
     ])
 
 
@@ -124,16 +137,6 @@ def generate_launch_description():
 
         swarm_launch_description.add_action(rover_launch) # add the rover launch to this launch description
     
-    # artifact manager node that will track the artifacts in the swarm world
-    artifact_manager_node = Node(
-        package="swarm",
-        executable="artifact_manager",
-        name="artifact_manager_node",
-        output="screen",
-        parameters=[{"artifacts_spawn_config_file_path": artifacts_spawn_config_file_path}]
-    )
-
-    swarm_launch_description.add_action(artifact_manager_node)
 
     return swarm_launch_description
 

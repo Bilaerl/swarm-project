@@ -1,19 +1,22 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from ament_index_python.packages import get_package_share_directory
 
 
-# gets paths to rover urdf in the package share directory
+# gets path to rover urdf in the package share directory
 path_prefix = get_package_share_directory("swarm")
 rover_xacro_file_path = os.path.join(path_prefix, "models", "rover", "rover.xacro")
 
-# slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
-# ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
+# gets path to rover brain launch file in the rover_brain package share directory
+rover_brain_path_prefix = get_package_share_directory("rover_brain")
+rover_brain_launch_file_path = os.path.join(rover_brain_path_prefix, "launch", "rover_brain_launch.py")
+
 
 
 def generate_launch_description():
@@ -96,45 +99,13 @@ def generate_launch_description():
         output="screen"
     )
 
-    # rviz_node = Node(
-    #     package="rviz2",
-    #     executable="rviz2",
-    #     name="rviz",
-    #     output="screen"
-    # )
-
-    # slam_node = Node(
-    #     package="slam_toolbox",
-    #     executable="async_slam_toolbox_node",
-    #     name="slam_toolbox",
-    #     parameters=[
-    #         slam_toolbox_config_file_path,
-    #         {"use_sim_time": True}
-    #     ],
-    #     output="screen"
-    # )
-
-    # slam_lifecycle_manager_node = Node(
-    #     package='nav2_lifecycle_manager',
-    #     executable='lifecycle_manager',
-    #     name='slam_lifecycle_manager',
-    #     parameters=[{
-    #         'use_sim_time': True,
-    #         'autostart': True,
-    #         'node_names': ['slam_toolbox'] # Must match the 'name' in your slam_node
-    #     }]
-    # )
-
-    # ekf_filter_node = Node(
-    #     package="robot_localization",
-    #     executable="ekf_node",
-    #     name="ekf_filter_node",
-    #     parameters=[
-    #         ekf_config_file_path,
-    #         {"use_sim_time": True}
-    #     ],
-    #     output="screen"
-    # )
+    rover_brain_launch = IncludeLaunchDescription(
+        launch_description_source=PythonLaunchDescriptionSource(rover_brain_launch_file_path),
+        launch_arguments={
+            "rover_name": rover_name,
+            "use_sim_time": "True",   # because this launch file is only used when working with a simulator
+        }.items()
+    )
 
     return LaunchDescription([
         rover_name_arg,
@@ -144,8 +115,5 @@ def generate_launch_description():
         robot_state_publisher_node,
         robot_spawn_node,
         ros_gz_bridge_node,
-        # rviz_node,
-        # ekf_filter_node,
-        # slam_node,
-        # slam_lifecycle_manager_node,
+        rover_brain_launch,
     ])

@@ -73,10 +73,10 @@ def generate_launch_description():
         package="ros_gz_bridge",
         executable="parameter_bridge",
         name="global_ros_gz_bridge_node",
-        parameters=[
-            {"use_sim_time": True},
-            {"config_file": global_ros_gz_bridge_config_file_path}
-        ],
+        parameters=[{
+            "use_sim_time": True,
+            "config_file": global_ros_gz_bridge_config_file_path
+        }],
         output="screen"
     )
 
@@ -86,7 +86,10 @@ def generate_launch_description():
         executable="artifact_manager",
         name="artifact_manager_node",
         output="screen",
-        parameters=[{"artifacts_spawn_config_file_path": artifacts_spawn_config_file_path}]
+        parameters=[{
+            "use_sim_time": True,
+            "artifacts_spawn_config_file_path": artifacts_spawn_config_file_path
+        }],
     )
 
     # saved the launch description in a variable instead of just returning it

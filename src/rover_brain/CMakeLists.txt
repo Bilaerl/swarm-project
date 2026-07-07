@@ -29,6 +29,13 @@ rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_t
 target_link_libraries(picker ${cpp_typesupport_target})
 target_link_libraries(rover_core ${cpp_typesupport_target})
 
+# install needed file directories
+install(DIRECTORY 
+  launch  #launch files
+  config  #config files
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 # install cpp executables
 install(TARGETS
   picker

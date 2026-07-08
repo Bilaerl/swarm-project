@@ -50,18 +50,19 @@ class ArtifactManager : public rclcpp::Node
             
             // start servers for picking, and dropping artifacts respectively
 
-            // gz_delete_client_ is placed on its own mutually-exclusive callback group so its
-            // future can be resolved by a different executor thread than the one blocked waiting
-            // on it inside remove_artifact_callback (see main(), which uses a MultiThreadedExecutor).
-            client_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-            gz_delete_client_ = this->create_client<ros_gz_interfaces::srv::DeleteEntity>(
-                "/world/swarm_world/remove",
-                rclcpp::QoS(rclcpp::ServicesQoS()),
-                client_callback_group_);
+            // a MultiThreadedExecutor is used to handle cases of callbacks blocking their thread and waiting for a response
+            // each blocking callback is placed on its own callback group
+            // non-blocking callbacks will be placed on the default callback group (by not adding them to a specific callback group)
 
+            gz_delete_client_ = this->create_client<ros_gz_interfaces::srv::DeleteEntity>("/world/swarm_world/remove");
+            
+            artifact_removal_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
             artifact_removal_service_ = this->create_service<swarm::srv::RemoveArtifact>(
                 "artifact_manager/remove_artifact", [this](const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
-                std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {this->remove_artifact_callback(request, response);});
+                std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {this->remove_artifact_callback(request, response);},
+                rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
+                artifact_removal_callback_group_   // place the service on the artifact removal callback group
+            );
             
             
             RCLCPP_INFO(this->get_logger(), "Swarm artifact tracking system online.");
@@ -77,8 +78,9 @@ class ArtifactManager : public rclcpp::Node
         std::vector<Artifact> dropped_artifacts_;
 
         rclcpp::Client<ros_gz_interfaces::srv::DeleteEntity>::SharedPtr gz_delete_client_;
+        
+        rclcpp::CallbackGroup::SharedPtr artifact_removal_callback_group_;
         rclcpp::Service<swarm::srv::RemoveArtifact>::SharedPtr artifact_removal_service_;
-        rclcpp::CallbackGroup::SharedPtr client_callback_group_;
 
         
         void extract_artifacts_from_file(const std::string& file_path)
@@ -122,7 +124,7 @@ class ArtifactManager : public rclcpp::Node
         void remove_artifact_callback(const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
                 std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {
             
-            RCLCPP_INFO(this->get_logger(), "Received request from %s to pick artifact at %f, %f, %f",
+            RCLCPP_INFO(this->get_logger(), "Received request from %s to remove artifact at %f, %f, %f",
                 request->rover_name.c_str(), request->artifact_x, request->artifact_y, request->artifact_z);
             
             double target_x = request->artifact_x;
@@ -166,13 +168,13 @@ class ArtifactManager : public rclcpp::Node
                 gz_req->entity.name = target_artifact->name;
                 gz_req->entity.type = ros_gz_interfaces::msg::Entity::MODEL;
 
-                // Send the request and block *this* callback until it resolves, so that
-                // `response` is fully populated before remove_artifact_callback returns
-                // (rclcpp sends whatever is in `response` back to the caller the moment this
+                // send the request and block this callback until it resolves, so that
+                // response is fully populated before remove_artifact_callback returns
+                // (rclcpp sends whatever is in response back to the caller the moment this
                 // function returns — populating it later, inside an async callback, is too late).
                 //
-                // This blocks the thread handling artifact_removal_service_, but since
-                // gz_delete_client_ lives on its own callback group (client_callback_group_),
+                // this blocks the thread handling artifact_removal_service_, but since
+                // gz_delete_client_ and artifact_removal_service_ live on separate callback groups
                 // a MultiThreadedExecutor can still service the client's response on a
                 // different thread while this one waits. See main().
                 auto gz_future = gz_delete_client_->async_send_request(gz_req);
@@ -223,9 +225,9 @@ int main(int argc, char * argv[])
 
 	auto node = std::make_shared<ArtifactManager>();
 
-	// A MultiThreadedExecutor is required here: remove_artifact_callback blocks its thread
+	// a MultiThreadedExecutor is required here: remove_artifact_callback blocks its thread
 	// waiting on gz_delete_client_'s future, and that future can only be fulfilled once
-	// the executor processes the incoming Gazebo response on a *different* thread. With a
+	// the executor processes the incoming Gazebo response on a different thread. With a
 	// single-threaded executor (or spin()), this would deadlock the node.
 	rclcpp::executors::MultiThreadedExecutor executor;
 	executor.add_node(node);

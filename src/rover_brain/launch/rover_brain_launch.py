@@ -42,7 +42,10 @@ def generate_launch_description():
         name="picker_node",
         namespace=rover_name,
         arguments=[rover_name],
-        parameters=[{"use_sim_time": use_sim_time}],
+        parameters=[{
+            "use_sim_time": use_sim_time,
+            "rover_name": rover_name    # needed to pass name to artifact manager in simulation, can be removed on physical rover
+        }],
         output="screen"
     )
 

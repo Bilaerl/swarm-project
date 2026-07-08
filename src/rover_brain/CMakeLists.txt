@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED) # For generating service interfaces
+find_package(swarm REQUIRED) # For using the service interfaces defined in the swarm package
 
 # generate service interfaces
 # without this, the service definitions won't be generated and the code won't compile
@@ -18,7 +19,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 # create executables
 add_executable(picker src/picker.cpp)
-ament_target_dependencies(picker rclcpp)
+ament_target_dependencies(picker rclcpp swarm)
 
 add_executable(rover_core src/rover_core.cpp)
 ament_target_dependencies(rover_core rclcpp)

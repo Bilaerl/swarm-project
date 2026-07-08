@@ -8,3 +8,8 @@
   ros_type_name: "ros_gz_interfaces/srv/DeleteEntity"
   gz_req_type_name: "gz.msgs.Entity"
   gz_rep_type_name: "gz.msgs.Boolean"
+
+- service_name: "/world/swarm_world/create"
+  ros_type_name: "ros_gz_interfaces/srv/SpawnEntity"
+  gz_req_type_name: "gz.msgs.EntityFactory"
+  gz_rep_type_name: "gz.msgs.Boolean"

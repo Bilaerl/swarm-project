@@ -15,6 +15,7 @@ find_package(rosidl_default_generators REQUIRED) # For generating service interf
 # without this, the service definitions won't be generated and the code won't compile
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/RemoveArtifact.srv"
+  "srv/SpawnArtifact.srv"
 )
 
 # create executables

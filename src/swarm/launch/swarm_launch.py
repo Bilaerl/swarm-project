@@ -21,7 +21,7 @@ gz_sim_package_launch_file = os.path.join(gz_sim_package_dir, "launch", "gz_sim.
 rover_launch_file = os.path.join(path_prefix, "launch", "rover_launch.py")
 
 # gets the path to the artifact file
-artifact_file_path = os.path.join(path_prefix, "models", "artifact.sdf")
+artifact_sdf_file_path = os.path.join(path_prefix, "models", "artifact.sdf")
 
 # gets the path to config files in the swarm package
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
@@ -88,7 +88,8 @@ def generate_launch_description():
         output="screen",
         parameters=[{
             "use_sim_time": True,
-            "artifacts_spawn_config_file_path": artifacts_spawn_config_file_path
+            "artifacts_spawn_config_file_path": artifacts_spawn_config_file_path,
+            "artifact_sdf_file_path": artifact_sdf_file_path
         }],
     )
 
@@ -112,7 +113,7 @@ def generate_launch_description():
             executable="create",
             name=f"artifact_spawn_node_{num}",
             arguments=[
-                "-file", artifact_file_path,
+                "-file", artifact_sdf_file_path,
                 "-name", artifact_config["name"],
                 "-x", artifact_config["x"],
                 "-y", artifact_config["y"],

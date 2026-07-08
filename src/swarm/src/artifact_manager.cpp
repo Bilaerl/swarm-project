@@ -12,7 +12,9 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "swarm/srv/remove_artifact.hpp"
+#include "swarm/srv/spawn_artifact.hpp"
 #include "ros_gz_interfaces/srv/delete_entity.hpp"
+#include "ros_gz_interfaces/srv/spawn_entity.hpp"
 #include "ros_gz_interfaces/msg/entity.hpp"
 
 using namespace std::chrono_literals;
@@ -30,38 +32,50 @@ struct Artifact
 
 class ArtifactManager : public rclcpp::Node
 {
-	public:
-		ArtifactManager()
-		: Node("artifact_manager"), matching_threshold_(0.2f)
-		{
-			// logic to look for all active artifact and store them in active_artifacts_
+    public:
+        ArtifactManager()
+        : Node("artifact_manager"), matching_threshold_(0.2f)
+        {
+            // parameters for artifact SDF file path and artifacts spawn config file path
+            this->declare_parameter<std::string>("artifact_sdf_file_path", "");
+            this->get_parameter("artifact_sdf_file_path", artifact_sdf_file_path_);
+
             this->declare_parameter<std::string>("artifacts_spawn_config_file_path", "");
+            std::string spawn_config_file_path = this->get_parameter("artifacts_spawn_config_file_path").as_string();
 
-            std::string file_path;
-            this->get_parameter("artifacts_spawn_config_file_path", file_path);
-
-            if (!file_path.empty())
+			// logic to look for all active artifact and store them in active_artifacts_
+            if (!spawn_config_file_path.empty())
             {
-                RCLCPP_INFO(this->get_logger(), "Successfully received static artifacts file path: %s", file_path.c_str());
-                extract_artifacts_from_file(file_path);
+                RCLCPP_INFO(this->get_logger(), "Successfully received static artifacts file path: %s", spawn_config_file_path.c_str());
+                extract_artifacts_from_file(spawn_config_file_path);
             } else {
                 RCLCPP_WARN(this->get_logger(), "Artifacts file path parameter is empty!");
             }
             
-            // start servers for picking, and dropping artifacts respectively
-
+            
             // a MultiThreadedExecutor is used to handle cases of callbacks blocking their thread and waiting for a response
             // each blocking callback is placed on its own callback group
             // non-blocking callbacks will be placed on the default callback group (by not adding them to a specific callback group)
-
-            gz_delete_client_ = this->create_client<ros_gz_interfaces::srv::DeleteEntity>("/world/swarm_world/remove");
             
-            artifact_removal_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-            artifact_removal_service_ = this->create_service<swarm::srv::RemoveArtifact>(
+            // clients for Gazebo bridge services
+            gz_delete_client_ = this->create_client<ros_gz_interfaces::srv::DeleteEntity>("/world/swarm_world/remove");
+            gz_spawn_client_ = this->create_client<ros_gz_interfaces::srv::SpawnEntity>("/world/swarm_world/create");
+            
+            // services for artifact removal and spawning
+            remove_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+            remove_artifact_service_ = this->create_service<swarm::srv::RemoveArtifact>(
                 "artifact_manager/remove_artifact", [this](const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
-                std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {this->remove_artifact_callback(request, response);},
+                    std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {this->remove_artifact_callback(request, response);},
+                    rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
+                    remove_artifact_callback_group_   // place the service on the artifact removal callback group
+                );
+                
+            spawn_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+            spawn_artifact_service_ = this->create_service<swarm::srv::SpawnArtifact>(
+                "artifact_manager/spawn_artifact", [this](const std::shared_ptr<swarm::srv::SpawnArtifact::Request> request,
+                std::shared_ptr<swarm::srv::SpawnArtifact::Response> response) {this->spawn_artifact_callback(request, response);},
                 rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
-                artifact_removal_callback_group_   // place the service on the artifact removal callback group
+                spawn_artifact_callback_group_   // place the service on the spawn artifact callback group
             );
             
             
@@ -72,16 +86,21 @@ class ArtifactManager : public rclcpp::Node
 
 	private:
         const float matching_threshold_;
+        std::string artifact_sdf_file_path_;
+        
         std::mutex artifact_mutex_;
         std::vector<Artifact> active_artifacts_;
         std::vector<Artifact> picked_artifacts_;
         std::vector<Artifact> dropped_artifacts_;
 
         rclcpp::Client<ros_gz_interfaces::srv::DeleteEntity>::SharedPtr gz_delete_client_;
+        rclcpp::Client<ros_gz_interfaces::srv::SpawnEntity>::SharedPtr gz_spawn_client_;
         
-        rclcpp::CallbackGroup::SharedPtr artifact_removal_callback_group_;
-        rclcpp::Service<swarm::srv::RemoveArtifact>::SharedPtr artifact_removal_service_;
-
+        rclcpp::CallbackGroup::SharedPtr remove_artifact_callback_group_;
+        rclcpp::Service<swarm::srv::RemoveArtifact>::SharedPtr remove_artifact_service_;
+        
+        rclcpp::CallbackGroup::SharedPtr spawn_artifact_callback_group_;
+        rclcpp::Service<swarm::srv::SpawnArtifact>::SharedPtr spawn_artifact_service_;
         
         void extract_artifacts_from_file(const std::string& file_path)
         {
@@ -124,7 +143,7 @@ class ArtifactManager : public rclcpp::Node
         void remove_artifact_callback(const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
                 std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {
             
-            RCLCPP_INFO(this->get_logger(), "Received request from %s to remove artifact at %f, %f, %f",
+            RCLCPP_INFO(this->get_logger(), "Received request from %s to remove artifact at %.2f, %.2f, %.2f",
                 request->rover_name.c_str(), request->artifact_x, request->artifact_y, request->artifact_z);
             
             double target_x = request->artifact_x;
@@ -154,67 +173,150 @@ class ArtifactManager : public rclcpp::Node
                 
             }
 
-            if (target_artifact.has_value()) {
-                RCLCPP_INFO(this->get_logger(), "Target artifact found, removing...");
+            if (!target_artifact.has_value()) {
+                RCLCPP_INFO(this->get_logger(), "Target artifact not found, cannot remove.");
+                response->success = false;
+                return;
+            }
 
-                if (!gz_delete_client_->wait_for_service(std::chrono::seconds(1))) {
-                    RCLCPP_ERROR(this->get_logger(), "Gazebo deletion bridge service unavailable.");
-                    response->success = false;
-                    return;
-                }
+            if (!gz_delete_client_->wait_for_service(std::chrono::seconds(1))) {
+                RCLCPP_ERROR(this->get_logger(), "Gazebo deletion bridge service unavailable.");
+                response->success = false;
+                return;
+            }
 
-                // Construct standard Gazebo removal request
-                auto gz_req = std::make_shared<ros_gz_interfaces::srv::DeleteEntity::Request>();
-                gz_req->entity.name = target_artifact->name;
-                gz_req->entity.type = ros_gz_interfaces::msg::Entity::MODEL;
+            // construct standard Gazebo removal request
+            auto gz_req = std::make_shared<ros_gz_interfaces::srv::DeleteEntity::Request>();
+            gz_req->entity.name = target_artifact->name;
+            gz_req->entity.type = ros_gz_interfaces::msg::Entity::MODEL;
 
-                // send the request and block this callback until it resolves, so that
-                // response is fully populated before remove_artifact_callback returns
-                // (rclcpp sends whatever is in response back to the caller the moment this
-                // function returns — populating it later, inside an async callback, is too late).
-                //
-                // this blocks the thread handling artifact_removal_service_, but since
-                // gz_delete_client_ and artifact_removal_service_ live on separate callback groups
-                // a MultiThreadedExecutor can still service the client's response on a
-                // different thread while this one waits. See main().
-                auto gz_future = gz_delete_client_->async_send_request(gz_req);
+            // send the request and block this callback until it resolves, so that
+            // response is fully populated before remove_artifact_callback returns
+            // (rclcpp sends whatever is in response back to the caller the moment this
+            // function returns — populating it later, inside an async callback, is too late).
+            //
+            // this blocks the thread handling remove_artifact_service_, but since
+            // gz_delete_client_ and remove_artifact_service_ live on separate callback groups
+            // a MultiThreadedExecutor can still service the client's response on a
+            // different thread while this one waits. See main().
+            auto gz_future = gz_delete_client_->async_send_request(gz_req);
 
-                auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
+            auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
 
-                if (wait_result != std::future_status::ready) {
-                    RCLCPP_ERROR(this->get_logger(), "Timed out waiting for Gazebo deletion response.");
-                    response->success = false;
-                    return;
-                }
+            if (wait_result != std::future_status::ready) {
+                RCLCPP_ERROR(this->get_logger(), "Timed out waiting for Gazebo deletion response.");
+                response->success = false;
+                return;
+            }
 
-                auto gz_response = gz_future.get();
+            auto gz_response = gz_future.get();
 
-                if (gz_response->success) {
-                    RCLCPP_INFO(this->get_logger(), "Successfully removed artifact from Gazebo.");
+            if (gz_response->success) {
+                RCLCPP_INFO(this->get_logger(), "Successfully removed artifact %s from Gazebo.", target_artifact->name.c_str());
 
-                    response->success = true;
+                response->success = true;
 
-                    std::scoped_lock lock(artifact_mutex_);
-                    // Remove the artifact from active_artifacts_ and add to picked_artifacts_
-                    active_artifacts_.erase(std::remove_if(active_artifacts_.begin(), active_artifacts_.end(), [target_artifact](const Artifact& a) {
-                        return a.name == target_artifact->name;
-                    }), active_artifacts_.end());
+                std::scoped_lock lock(artifact_mutex_);
+                // remove the artifact from active_artifacts_ and add to picked_artifacts_
+                active_artifacts_.erase(std::remove_if(active_artifacts_.begin(), active_artifacts_.end(), [target_artifact](const Artifact& a) {
+                    return a.name == target_artifact->name;
+                }), active_artifacts_.end());
 
-                    Artifact picked_artifact = target_artifact.value();
-                    picked_artifact.picked_by = request->rover_name;
+                // add the artifact to picked_artifacts_ with the rover's name
+                Artifact picked_artifact = target_artifact.value();
+                picked_artifact.picked_by = request->rover_name;
 
-                    picked_artifacts_.push_back(picked_artifact);
-
-                } else {
-                    RCLCPP_ERROR(this->get_logger(), "Failed to remove artifact from Gazebo");
-                    response->success = false;
-                }
+                picked_artifacts_.push_back(picked_artifact);
 
             } else {
-                RCLCPP_WARN(this->get_logger(), "Target artifact not found.");
+                RCLCPP_ERROR(this->get_logger(), "Failed to remove artifact from Gazebo");
                 response->success = false;
             }
             
+        }
+
+        void spawn_artifact_callback(const std::shared_ptr<swarm::srv::SpawnArtifact::Request> request,
+                std::shared_ptr<swarm::srv::SpawnArtifact::Response> response) {
+            
+            RCLCPP_INFO(this->get_logger(), "Received request from %s to spawn artifact at %.2f, %.2f, %.2f",
+                request->rover_name.c_str(), request->spawn_x, request->spawn_y, request->spawn_z);
+            
+            std::optional<Artifact> target_artifact;
+
+            {
+                std::scoped_lock lock(artifact_mutex_);
+
+                // look for artifacts that were picked by the requesting rover
+                for (const auto& artifact : picked_artifacts_) {
+                    
+                    if (artifact.picked_by.value() == request->rover_name) {
+                        target_artifact = artifact;
+                        break;
+                    }
+                }
+                
+            }
+
+            if (!target_artifact.has_value()) {
+                RCLCPP_WARN(this->get_logger(), "No artifact found that was picked by %s.", request->rover_name.c_str());
+                response->success = false;
+                return;
+            }
+
+            if (!gz_spawn_client_->wait_for_service(std::chrono::seconds(1))) {
+                RCLCPP_ERROR(this->get_logger(), "Gazebo spawn bridge service unavailable.");
+                response->success = false;
+                return;
+            }
+
+            
+            // Construct standard Gazebo spawn request
+            auto gz_req = std::make_shared<ros_gz_interfaces::srv::SpawnEntity::Request>();
+            gz_req->entity_factory.name = target_artifact->name;
+            gz_req->entity_factory.pose.position.x = request->spawn_x;
+            gz_req->entity_factory.pose.position.y = request->spawn_y;
+            gz_req->entity_factory.pose.position.z = request->spawn_z;
+            gz_req->entity_factory.sdf_filename = artifact_sdf_file_path_;
+            gz_req->entity_factory.allow_renaming = false; // don't allow Gazebo to rename the artifact if a name conflict occurs
+
+            // send the request and block this callback until it resolves
+            auto gz_future = gz_spawn_client_->async_send_request(gz_req);
+
+            auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
+
+            if (wait_result != std::future_status::ready) {
+                RCLCPP_ERROR(this->get_logger(), "Timed out waiting for Gazebo spawn response.");
+                response->success = false;
+                return;
+            }
+
+            auto gz_response = gz_future.get();
+
+            if (gz_response->success) {
+                RCLCPP_INFO(this->get_logger(), "Successfully spawned artifact %s in Gazebo.", target_artifact.value().name.c_str());
+                
+                std::scoped_lock lock(artifact_mutex_);
+
+                // remove the artifact from picked_artifacts_
+                picked_artifacts_.erase(std::remove_if(picked_artifacts_.begin(), picked_artifacts_.end(), [target_artifact](const Artifact& a) {
+                    return a.name == target_artifact->name;
+                }), picked_artifacts_.end());
+                
+                // add the artifact to dropped_artifacts_ with the new spawn coordinates
+                Artifact dropped_artifact;
+                dropped_artifact.name = target_artifact.value().name;
+                dropped_artifact.x = request->spawn_x;
+                dropped_artifact.y = request->spawn_y;
+                dropped_artifact.z = request->spawn_z;
+                
+                dropped_artifacts_.push_back(dropped_artifact);
+                
+                response->success = true;
+
+            } else {
+                RCLCPP_ERROR(this->get_logger(), "Failed to spawn artifact %s in Gazebo.", target_artifact.value().name.c_str());
+                response->success = false;
+            }
         }
 		
 };

@@ -1,0 +1,6 @@
+string rover_name
+float64 spawn_x
+float64 spawn_y
+float64 spawn_z
+---
+bool success

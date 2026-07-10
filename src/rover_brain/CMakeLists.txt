@@ -15,6 +15,7 @@ find_package(swarm REQUIRED) # For using the service interfaces defined in the s
 # without this, the service definitions won't be generated and the code won't compile
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/PickArtifact.srv"
+  "srv/DropArtifact.srv"
 )
 
 # create executables

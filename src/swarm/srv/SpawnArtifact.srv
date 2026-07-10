@@ -1,6 +1,6 @@
 string rover_name
-float64 spawn_x
-float64 spawn_y
-float64 spawn_z
+float32 spawn_x
+float32 spawn_y
+float32 spawn_z
 ---
 bool success

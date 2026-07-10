@@ -34,7 +34,7 @@ class ArtifactManager : public rclcpp::Node
 {
     public:
         ArtifactManager()
-        : Node("artifact_manager"), matching_threshold_(0.2f)
+        : Node("artifact_manager"), matching_threshold_(0.5f)
         {
             // parameters for artifact SDF file path and artifacts spawn config file path
             this->declare_parameter<std::string>("artifact_sdf_file_path", "");
@@ -129,7 +129,7 @@ class ArtifactManager : public rclcpp::Node
                 Artifact artifact;
 
                 // extract whitespace-separated values sequentially
-                // Note: Coordinates are parsed directly into doubles for simulation accuracy
+                // Note: Coordinates are parsed directly into floats
                 if (ss >> artifact.name >> artifact.x >> artifact.y >> artifact.z) {
                     std::scoped_lock lock(artifact_mutex_);
                     active_artifacts_.push_back(artifact);
@@ -146,20 +146,20 @@ class ArtifactManager : public rclcpp::Node
             RCLCPP_INFO(this->get_logger(), "Received request from %s to remove artifact at %.2f, %.2f, %.2f",
                 request->rover_name.c_str(), request->artifact_x, request->artifact_y, request->artifact_z);
             
-            double target_x = request->artifact_x;
-            double target_y = request->artifact_y;
-            double target_z = request->artifact_z;
+            float target_x = request->artifact_x;
+            float target_y = request->artifact_y;
+            float target_z = request->artifact_z;
 
             std::optional<Artifact> target_artifact;
 
             {
                 std::scoped_lock lock(artifact_mutex_);
-                double min_dist = std::numeric_limits<double>::max();
+                float min_dist = std::numeric_limits<float>::max();
 
                 // loop through tracked elements to evaluate distance
                 for (const auto& artifact : active_artifacts_) {
 
-                    double dist = std::sqrt(
+                    float dist = std::sqrt(
                         std::pow(artifact.x - target_x, 2) +
                         std::pow(artifact.y - target_y, 2) +
                         std::pow(artifact.z - target_z, 2)

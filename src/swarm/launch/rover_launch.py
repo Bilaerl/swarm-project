@@ -90,7 +90,6 @@ def generate_launch_description():
             ["/", rover_name ,"/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo"],
             ["/", rover_name ,"/cmd_vel@geometry_msgs/msg/Twist]gz.msgs.Twist"],
             ["/", rover_name ,"/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model"],
-            ["/", rover_name ,"/tf@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V"],
             ["/", rover_name ,"/odom@nav_msgs/msg/Odometry[gz.msgs.Odometry"],
             ["/", rover_name ,"/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan"],
             ["/", rover_name ,"/imu@sensor_msgs/msg/Imu[gz.msgs.IMU"],

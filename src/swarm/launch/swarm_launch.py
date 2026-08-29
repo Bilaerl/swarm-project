@@ -25,8 +25,6 @@ artifact_sdf_file_path = os.path.join(path_prefix, "models", "artifact.sdf")
 
 # gets the path to config files in the swarm package
 rviz_config_file_path = os.path.join(path_prefix, "rviz", "swarm-project.rviz")
-slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
-ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
 artifacts_spawn_config_file_path = os.path.join(path_prefix, "config", "artifacts_spawn_config.txt")
 agents_spawn_config_file_path = os.path.join(path_prefix, "config", "agents_spawn_config.txt")
 global_ros_gz_bridge_config_file_path = os.path.join(path_prefix, "config", "global_ros_gz_bridge_config.yaml")

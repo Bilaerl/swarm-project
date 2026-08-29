@@ -13,7 +13,6 @@
             <odom_publish_frequency>${odometry_update_rate}</odom_publish_frequency>
             <topic>$(arg robot_name)/cmd_vel</topic>
             <odom_topic>$(arg robot_name)/odom</odom_topic>
-            <tf_topic>$/tf</tf_topic>
             <odom_frame>$(arg robot_name)/odom</odom_frame>
             <child_frame_id>$(arg robot_name)/base_link</child_frame_id>
         </plugin>

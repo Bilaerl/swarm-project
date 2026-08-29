@@ -9,6 +9,11 @@ from ament_index_python.packages import get_package_share_directory
 # get path to package share directory
 path_prefix = get_package_share_directory("rover_brain")
 
+# path to config files in the rover_brain package
+slam_toolbox_config_file_path = os.path.join(path_prefix, "config", "mapper_params_online_async.yaml")
+ekf_config_file_path = os.path.join(path_prefix, "config", "ekf.yaml")
+
+
 
 def generate_launch_description():
     rover_name = LaunchConfiguration("rover_name")
@@ -49,42 +54,54 @@ def generate_launch_description():
         output="screen"
     )
 
+    ekf_filter_node = Node(
+        package="robot_localization",
+        executable="ekf_node",
+        name="ekf_filter_node",
+        namespace=rover_name,
+        parameters=[
+            ekf_config_file_path,
+            {
+                "use_sim_time": use_sim_time,
+                "odom_frame": [rover_name, "/odom"],
+                "base_link_frame": [rover_name, "/base_link"],
+                "world_frame": [rover_name, "/odom"],
+                "map_frame": [rover_name, "/map"],
+            }
+        ],
+        output="screen"
+    )
+
     # slam_node = Node(
     #     package="slam_toolbox",
     #     executable="async_slam_toolbox_node",
     #     name="slam_toolbox",
+    #     namespace=rover_name,
     #     parameters=[
     #         slam_toolbox_config_file_path,
-    #         {"use_sim_time": True}
+    #         {"use_sim_time": use_sim_time}
     #     ],
     #     output="screen"
     # )
 
     # slam_lifecycle_manager_node = Node(
-    #     package='nav2_lifecycle_manager',
-    #     executable='lifecycle_manager',
-    #     name='slam_lifecycle_manager',
+    #     package="nav2_lifecycle_manager",
+    #     executable="lifecycle_manager",
+    #     name="slam_lifecycle_manager",
+    #     namespace=rover_name,
     #     parameters=[{
-    #         'use_sim_time': True,
-    #         'autostart': True,
-    #         'node_names': ['slam_toolbox'] # Must match the 'name' in your slam_node
+    #         "use_sim_time": use_sim_time,
+    #         "autostart": True,
+    #         "node_names": ["slam_toolbox"] # Must match the 'name' in your slam_node
     #     }]
-    # )
-
-    # ekf_filter_node = Node(
-    #     package="robot_localization",
-    #     executable="ekf_node",
-    #     name="ekf_filter_node",
-    #     parameters=[
-    #         ekf_config_file_path,
-    #         {"use_sim_time": True}
-    #     ],
-    #     output="screen"
     # )
 
     return LaunchDescription([
         rover_name_arg,
         use_sim_time_arg,
         rover_core_node,
-        picker_node
+        picker_node,
+        ekf_filter_node,
+        # slam_node,
+        # slam_lifecycle_manager_node
     ])

@@ -72,36 +72,10 @@ def generate_launch_description():
         output="screen"
     )
 
-    # slam_node = Node(
-    #     package="slam_toolbox",
-    #     executable="async_slam_toolbox_node",
-    #     name="slam_toolbox",
-    #     namespace=rover_name,
-    #     parameters=[
-    #         slam_toolbox_config_file_path,
-    #         {"use_sim_time": use_sim_time}
-    #     ],
-    #     output="screen"
-    # )
-
-    # slam_lifecycle_manager_node = Node(
-    #     package="nav2_lifecycle_manager",
-    #     executable="lifecycle_manager",
-    #     name="slam_lifecycle_manager",
-    #     namespace=rover_name,
-    #     parameters=[{
-    #         "use_sim_time": use_sim_time,
-    #         "autostart": True,
-    #         "node_names": ["slam_toolbox"] # Must match the 'name' in your slam_node
-    #     }]
-    # )
-
     return LaunchDescription([
         rover_name_arg,
         use_sim_time_arg,
         rover_core_node,
         picker_node,
         ekf_filter_node,
-        # slam_node,
-        # slam_lifecycle_manager_node
     ])

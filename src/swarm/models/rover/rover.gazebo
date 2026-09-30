@@ -33,73 +33,78 @@
         </plugin>
     </gazebo>
 
-    <!-- camera sensor -->
+    <!-- camera sensor: based on raspberry pi camera module 3 -->
     <gazebo reference="camera_link">
         <sensor name="camera" type="camera">
             <pose> 0 0 0 0 0 0 </pose>
-            <visualize>true</visualize>
-            <update_rate>10</update_rate>
-            <topic>$(arg robot_name)/camera/image_raw</topic>
+            <visualize>false</visualize>
             <gz_frame_id>$(arg robot_name)/camera_link_optical</gz_frame_id> <!-- added so gz publishes to link as expected by ros2-->
             <frame_id>$(arg robot_name)/camera_link_optical</frame_id>    <!-- a newer version of the above tag. For GZ Ionic upwards-->
+            <always_on>1</always_on>
+            <update_rate>10</update_rate>
+            <topic>$(arg robot_name)/camera/image_raw</topic>
             <camera>
-                <horizontal_fov>1.089</horizontal_fov>
+                <horizontal_fov>1.309</horizontal_fov> <!-- 75 degrees -->
                 <image>
                     <format>R8G8B8</format>
                     <width>640</width>
                     <height>480</height>
                 </image>
                 <clip>
-                    <near>0.05</near>
-                    <far>8.0</far>
+                    <near>0.01</near>
+                    <far>15.0</far>
                 </clip>
+                <noise>
+                    <type>gaussian</type>
+                    <mean>0.0</mean>
+                    <stddev>0.007</stddev>
+                </noise>
             </camera>
         </sensor>
     </gazebo>
 
-    <!-- lidar sensor -->
+    <!-- lidar sensor: based on RPLidar S1 -->
     <gazebo reference="lidar_link">
         <sensor name='gpu_lidar' type='gpu_lidar'>
             <pose>0 0 0 0 0 0</pose>
-            <topic>$(arg robot_name)/scan</topic>
+            <visualize>false</visualize>
+            <gz_frame_id>$(arg robot_name)/lidar_link</gz_frame_id>
+            <frame_id>$(arg robot_name)/lidar_link</frame_id>
+            <always_on>1</always_on>
             <update_rate>10</update_rate>
+            <topic>$(arg robot_name)/scan</topic>
             <ray>
                 <scan>
                     <horizontal>
-                        <samples>640</samples>
+                        <samples>920</samples>
                         <resolution>1</resolution>
-                        <min_angle>-1.396263</min_angle>
-                        <max_angle>1.396263</max_angle>
+                        <min_angle>-3.14159</min_angle>
+                        <max_angle>3.14159</max_angle>
                     </horizontal>
-                    <vertical>
-                        <samples>1</samples>
-                        <resolution>0.01</resolution>
-                        <min_angle>0</min_angle>
-                        <max_angle>0</max_angle>
-                    </vertical>
                 </scan>
                 <range>
-                    <min>0.08</min>
-                    <max>10.0</max>
+                    <min>0.1</min>
+                    <max>15.0</max>
                     <resolution>0.01</resolution>
                 </range>
+                <noise>
+                    <type>gaussian</type>
+                    <mean>0</mean>
+                    <stddev>0.01</stddev>
+                </noise>
             </ray>
-            <always_on>1</always_on>
-            <gz_frame_id>$(arg robot_name)/lidar_link</gz_frame_id>
-            <frame_id>$(arg robot_name)/lidar_link</frame_id>
-            <visualize>true</visualize>
         </sensor>
     </gazebo>
 
     <!-- imu sensor -->
     <gazebo reference="chassis">
         <sensor name="imu_sensor" type="imu">
-            <always_on>1</always_on>
-            <update_rate>${odometry_update_rate}</update_rate>
-            <visualize>true</visualize>
-            <topic>$(arg robot_name)/imu</topic>
+            <visualize>false</visualize>
             <gz_frame_id>$(arg robot_name)/chassis</gz_frame_id>
             <frame_id>$(arg robot_name)/chassis</frame_id>
+            <always_on>1</always_on>
+            <update_rate>${odometry_update_rate}</update_rate>
+            <topic>$(arg robot_name)/imu</topic>
         </sensor>
     </gazebo>
 </robot>

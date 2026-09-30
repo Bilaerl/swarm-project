@@ -20,6 +20,12 @@
   
   <depend>rclcpp</depend>
   <depend>ros_gz_interfaces</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>gz-transport13</depend>
+  <depend>gz-msgs10</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

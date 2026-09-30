@@ -11,6 +11,11 @@
 #include <algorithm>
 
 #include "rclcpp/rclcpp.hpp"
+#include <gz/transport/Node.hh>
+#include <gz/msgs/pose_v.pb.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <geometry_msgs/msg/pose.hpp>
 #include "swarm/srv/remove_artifact.hpp"
 #include "swarm/srv/spawn_artifact.hpp"
 #include "ros_gz_interfaces/srv/delete_entity.hpp"
@@ -77,6 +82,8 @@ class ArtifactManager : public rclcpp::Node
                 rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
                 spawn_artifact_callback_group_   // place the service on the spawn artifact callback group
             );
+
+            gz_node_.Subscribe("/world/swarm_world/pose/info", &ArtifactManager::gazebo_pose_callback, this);
             
             
             RCLCPP_INFO(this->get_logger(), "Swarm artifact tracking system online.");
@@ -92,6 +99,9 @@ class ArtifactManager : public rclcpp::Node
         std::vector<Artifact> active_artifacts_;
         std::vector<Artifact> picked_artifacts_;
         std::vector<Artifact> dropped_artifacts_;
+        std::unordered_map<std::string, geometry_msgs::msg::Pose> ground_truth_rover_poses_;
+
+        gz::transport::Node gz_node_;
 
         rclcpp::Client<ros_gz_interfaces::srv::DeleteEntity>::SharedPtr gz_delete_client_;
         rclcpp::Client<ros_gz_interfaces::srv::SpawnEntity>::SharedPtr gz_spawn_client_;
@@ -139,6 +149,49 @@ class ArtifactManager : public rclcpp::Node
             file.close();
             RCLCPP_INFO(this->get_logger(), "Extracted %zu artifacts from file.", active_artifacts_.size());
         }
+  
+        // passive background update (runs asynchronously via gz-transport)
+        // updates ground_truth_rover_poses_ with the latest Gazebo pose information for all rovers
+        void gazebo_pose_callback(const gz::msgs::Pose_V& gz_poses) {
+
+            for (int i = 0; i < gz_poses.pose_size(); ++i) {
+                const auto& entity = gz_poses.pose(i);
+
+                if (entity.name().find("rover_") == 0) {
+                    geometry_msgs::msg::Pose true_pose;
+                    true_pose.position.x = entity.position().x();
+                    true_pose.position.y = entity.position().y();
+                    true_pose.position.z = entity.position().z();
+                    true_pose.orientation.x = entity.orientation().x();
+                    true_pose.orientation.y = entity.orientation().y();
+                    true_pose.orientation.z = entity.orientation().z();
+                    true_pose.orientation.w = entity.orientation().w();
+
+                    ground_truth_rover_poses_[entity.name()] = true_pose;
+                }
+            }
+        }
+
+        bool compute_ground_truth_artifact_pose(const std::string& rover_name, float& artifact_x, float& artifact_y, float& artifact_z) {
+
+            auto it = ground_truth_rover_poses_.find(rover_name);
+            if (it == ground_truth_rover_poses_.end()) {
+                return false; // Pose not available yet
+            }
+
+            tf2::Transform rover_transform;
+            tf2::fromMsg(it->second, rover_transform);
+
+            tf2::Vector3 relative_artifact_points(artifact_x, artifact_y, artifact_z);
+            
+            tf2::Vector3 artifact_points = rover_transform * relative_artifact_points;
+            
+            artifact_x = artifact_points.x();
+            artifact_y = artifact_points.y();
+            artifact_z = artifact_points.z();
+
+            return true;
+        }
 
         void remove_artifact_callback(const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
                 std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {
@@ -149,6 +202,12 @@ class ArtifactManager : public rclcpp::Node
             float target_x = request->artifact_x;
             float target_y = request->artifact_y;
             float target_z = request->artifact_z;
+
+            if (!compute_ground_truth_artifact_pose(request->rover_name, target_x, target_y, target_z)) {
+                RCLCPP_ERROR(this->get_logger(), "Rover %s ground truth pose not yet received from Gazebo. Try again later.", request->rover_name.c_str());
+                response->success = false;
+                return;
+            }
 
             std::optional<Artifact> target_artifact;
 

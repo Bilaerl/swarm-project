@@ -9,6 +9,12 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(ros_gz_interfaces REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(gz-transport13 REQUIRED)
+find_package(gz-msgs10 REQUIRED)
 find_package(rosidl_default_generators REQUIRED) # For generating service interfaces
 
 # generate service interfaces
@@ -20,7 +26,16 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 # create executables
 add_executable(artifact_manager src/artifact_manager.cpp)
-ament_target_dependencies(artifact_manager rclcpp ros_gz_interfaces)
+ament_target_dependencies(artifact_manager 
+  rclcpp
+  ros_gz_interfaces
+  geometry_msgs 
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
+  gz-transport13
+  gz-msgs10
+)
 
 # link the generated service interfaces
 # this approach is used because both service definition and the nodes using it are in the same package

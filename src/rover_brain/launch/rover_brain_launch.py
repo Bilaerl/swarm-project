@@ -72,10 +72,20 @@ def generate_launch_description():
         output="screen"
     )
 
+    image_processor_node = Node(
+        package="rover_brain",
+        executable="image_processor",
+        name="image_processor_node",
+        namespace=rover_name,
+        parameters=[{"use_sim_time": use_sim_time}],
+        output="screen"
+    )
+
     return LaunchDescription([
         rover_name_arg,
         use_sim_time_arg,
         rover_core_node,
         picker_node,
         ekf_filter_node,
+        image_processor_node
     ])

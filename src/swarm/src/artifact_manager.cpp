@@ -48,6 +48,14 @@ class ArtifactManager : public rclcpp::Node
             this->declare_parameter<std::string>("artifacts_spawn_config_file_path", "");
             std::string spawn_config_file_path = this->get_parameter("artifacts_spawn_config_file_path").as_string();
 
+            this->declare_parameter<float>("nest_x", 0.0);
+            this->declare_parameter<float>("nest_y", 0.0);
+            this->declare_parameter<float>("nest_radius", 5.0);
+
+            this->get_parameter("nest_x", nest_x_);
+            this->get_parameter("nest_y", nest_y_);
+            this->get_parameter("nest_radius", nest_radius_);
+
 			// logic to look for all active artifact and store them in active_artifacts_
             if (!spawn_config_file_path.empty())
             {
@@ -93,12 +101,13 @@ class ArtifactManager : public rclcpp::Node
 
 	private:
         const float matching_threshold_;
+        float nest_x_, nest_y_, nest_radius_;
         std::string artifact_sdf_file_path_;
         
         std::mutex artifact_mutex_;
         std::vector<Artifact> active_artifacts_;
         std::vector<Artifact> picked_artifacts_;
-        std::vector<Artifact> dropped_artifacts_;
+        std::vector<Artifact> nested_artifacts_;
         std::unordered_map<std::string, geometry_msgs::msg::Pose> ground_truth_rover_poses_;
 
         gz::transport::Node gz_node_;
@@ -371,14 +380,18 @@ class ArtifactManager : public rclcpp::Node
                     return a.name == target_artifact->name;
                 }), picked_artifacts_.end());
                 
-                // add the artifact to dropped_artifacts_ with the new spawn coordinates
+                // create the artifact with its new spawn coordinates
                 Artifact dropped_artifact;
                 dropped_artifact.name = target_artifact.value().name;
                 dropped_artifact.x = target_x;
                 dropped_artifact.y = target_y;
                 dropped_artifact.z = target_z;
-                
-                dropped_artifacts_.push_back(dropped_artifact);
+
+                if (artifact_in_nest(dropped_artifact.x, dropped_artifact.y)){
+                    nested_artifacts_.push_back(dropped_artifact);
+                } else {
+                    active_artifacts_.push_back(dropped_artifact);
+                }
                 
                 response->success = true;
 
@@ -386,6 +399,15 @@ class ArtifactManager : public rclcpp::Node
                 RCLCPP_ERROR(this->get_logger(), "Failed to spawn artifact %s in Gazebo.", target_artifact.value().name.c_str());
                 response->success = false;
             }
+        }
+
+        bool artifact_in_nest(const float& artifact_x, const float& artifact_y){
+            float dist = std::sqrt(
+                std::pow(nest_x_ - artifact_x, 2) +
+                std::pow(nest_y_ - artifact_y, 2)
+            );
+
+            return dist <= nest_radius_;
         }
 		
 };

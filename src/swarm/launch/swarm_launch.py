@@ -91,12 +91,25 @@ def generate_launch_description():
         }],
     )
 
+    # broadcast static TF for nest beacon location (x=0.0, y=0.0, z=1.6)
+    nest_tf_publisher_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="nest_beacon_node",
+        arguments=[
+            "--x", "0.0", "--y", "0.0", "--z", "1.6",
+            "--frame-id", "world",
+            "--child-frame-id", "nest_link"
+        ]
+    )
+
     # saved the launch description in a variable instead of just returning it
     # so a loop can be used to add the rover spawning nodes to it before returning it
     swarm_launch_description = LaunchDescription([
         gz_sim_env_variables,
         gz_sim_launch,
         artifact_manager_node,
+        nest_tf_publisher_node,
         global_ros_gz_bridge_node,
     ])
 

@@ -16,8 +16,8 @@
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <geometry_msgs/msg/pose.hpp>
-#include "swarm/srv/remove_artifact.hpp"
-#include "swarm/srv/spawn_artifact.hpp"
+#include "custom_interfaces/srv/remove_artifact.hpp"
+#include "custom_interfaces/srv/spawn_artifact.hpp"
 #include "ros_gz_interfaces/srv/delete_entity.hpp"
 #include "ros_gz_interfaces/srv/spawn_entity.hpp"
 #include "ros_gz_interfaces/msg/entity.hpp"
@@ -76,17 +76,17 @@ class ArtifactManager : public rclcpp::Node
             
             // services for artifact removal and spawning
             remove_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-            remove_artifact_service_ = this->create_service<swarm::srv::RemoveArtifact>(
-                "artifact_manager/remove_artifact", [this](const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
-                    std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {this->remove_artifact_callback(request, response);},
+            remove_artifact_service_ = this->create_service<custom_interfaces::srv::RemoveArtifact>(
+                "artifact_manager/remove_artifact", [this](const std::shared_ptr<custom_interfaces::srv::RemoveArtifact::Request> request,
+                    std::shared_ptr<custom_interfaces::srv::RemoveArtifact::Response> response) {this->remove_artifact_callback(request, response);},
                     rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
                     remove_artifact_callback_group_   // place the service on the artifact removal callback group
                 );
                 
             spawn_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-            spawn_artifact_service_ = this->create_service<swarm::srv::SpawnArtifact>(
-                "artifact_manager/spawn_artifact", [this](const std::shared_ptr<swarm::srv::SpawnArtifact::Request> request,
-                std::shared_ptr<swarm::srv::SpawnArtifact::Response> response) {this->spawn_artifact_callback(request, response);},
+            spawn_artifact_service_ = this->create_service<custom_interfaces::srv::SpawnArtifact>(
+                "artifact_manager/spawn_artifact", [this](const std::shared_ptr<custom_interfaces::srv::SpawnArtifact::Request> request,
+                std::shared_ptr<custom_interfaces::srv::SpawnArtifact::Response> response) {this->spawn_artifact_callback(request, response);},
                 rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
                 spawn_artifact_callback_group_   // place the service on the spawn artifact callback group
             );
@@ -116,10 +116,10 @@ class ArtifactManager : public rclcpp::Node
         rclcpp::Client<ros_gz_interfaces::srv::SpawnEntity>::SharedPtr gz_spawn_client_;
         
         rclcpp::CallbackGroup::SharedPtr remove_artifact_callback_group_;
-        rclcpp::Service<swarm::srv::RemoveArtifact>::SharedPtr remove_artifact_service_;
+        rclcpp::Service<custom_interfaces::srv::RemoveArtifact>::SharedPtr remove_artifact_service_;
         
         rclcpp::CallbackGroup::SharedPtr spawn_artifact_callback_group_;
-        rclcpp::Service<swarm::srv::SpawnArtifact>::SharedPtr spawn_artifact_service_;
+        rclcpp::Service<custom_interfaces::srv::SpawnArtifact>::SharedPtr spawn_artifact_service_;
         
         void extract_artifacts_from_file(const std::string& file_path)
         {
@@ -202,8 +202,8 @@ class ArtifactManager : public rclcpp::Node
             return true;
         }
 
-        void remove_artifact_callback(const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
-                std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {
+        void remove_artifact_callback(const std::shared_ptr<custom_interfaces::srv::RemoveArtifact::Request> request,
+                std::shared_ptr<custom_interfaces::srv::RemoveArtifact::Response> response) {
             
             float target_x = request->artifact_x;
             float target_y = request->artifact_y;
@@ -303,8 +303,8 @@ class ArtifactManager : public rclcpp::Node
             
         }
 
-        void spawn_artifact_callback(const std::shared_ptr<swarm::srv::SpawnArtifact::Request> request,
-                std::shared_ptr<swarm::srv::SpawnArtifact::Response> response) {
+        void spawn_artifact_callback(const std::shared_ptr<custom_interfaces::srv::SpawnArtifact::Request> request,
+                std::shared_ptr<custom_interfaces::srv::SpawnArtifact::Response> response) {
             
             float target_x = request->spawn_x;
             float target_y = request->spawn_y;

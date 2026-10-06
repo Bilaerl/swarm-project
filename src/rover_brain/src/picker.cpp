@@ -3,10 +3,10 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
-#include "rover_brain/srv/pick_artifact.hpp"
-#include "rover_brain/srv/drop_artifact.hpp"
-#include "swarm/srv/remove_artifact.hpp"
-#include "swarm/srv/spawn_artifact.hpp"
+#include "custom_interfaces/srv/pick_artifact.hpp"
+#include "custom_interfaces/srv/drop_artifact.hpp"
+#include "custom_interfaces/srv/remove_artifact.hpp"
+#include "custom_interfaces/srv/spawn_artifact.hpp"
 
 using namespace std::chrono_literals;
 
@@ -23,37 +23,37 @@ class Picker : public rclcpp::Node
 
 			// services
 			pick_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-			pick_artifact_service_ = this->create_service<rover_brain::srv::PickArtifact>("picker/pick_artifact", [this](const std::shared_ptr<rover_brain::srv::PickArtifact::Request> request,
-				std::shared_ptr<rover_brain::srv::PickArtifact::Response> response) {this->pick_artifact_callback(request, response);},
+			pick_artifact_service_ = this->create_service<custom_interfaces::srv::PickArtifact>("picker/pick_artifact", [this](const std::shared_ptr<custom_interfaces::srv::PickArtifact::Request> request,
+				std::shared_ptr<custom_interfaces::srv::PickArtifact::Response> response) {this->pick_artifact_callback(request, response);},
 				rclcpp::QoS(rclcpp::ServicesQoS()),
 				pick_artifact_callback_group_
 			);
 
 			drop_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-			drop_artifact_service_ = this->create_service<rover_brain::srv::DropArtifact>("picker/drop_artifact", [this](const std::shared_ptr<rover_brain::srv::DropArtifact::Request> request,
-				std::shared_ptr<rover_brain::srv::DropArtifact::Response> response) {this->drop_artifact_callback(request, response);},
+			drop_artifact_service_ = this->create_service<custom_interfaces::srv::DropArtifact>("picker/drop_artifact", [this](const std::shared_ptr<custom_interfaces::srv::DropArtifact::Request> request,
+				std::shared_ptr<custom_interfaces::srv::DropArtifact::Response> response) {this->drop_artifact_callback(request, response);},
 				rclcpp::QoS(rclcpp::ServicesQoS()),
 				drop_artifact_callback_group_
 			);
 			
 			// client
-			remove_artifact_client_ = this->create_client<swarm::srv::RemoveArtifact>("/artifact_manager/remove_artifact");
-			spawn_artifact_client_ = this->create_client<swarm::srv::SpawnArtifact>("/artifact_manager/spawn_artifact");
+			remove_artifact_client_ = this->create_client<custom_interfaces::srv::RemoveArtifact>("/artifact_manager/remove_artifact");
+			spawn_artifact_client_ = this->create_client<custom_interfaces::srv::SpawnArtifact>("/artifact_manager/spawn_artifact");
 		}
 
 
 	private:
 		rclcpp::CallbackGroup::SharedPtr pick_artifact_callback_group_;
-		rclcpp::Service<rover_brain::srv::PickArtifact>::SharedPtr pick_artifact_service_;
+		rclcpp::Service<custom_interfaces::srv::PickArtifact>::SharedPtr pick_artifact_service_;
 
 		rclcpp::CallbackGroup::SharedPtr drop_artifact_callback_group_;
-		rclcpp::Service<rover_brain::srv::DropArtifact>::SharedPtr drop_artifact_service_;
+		rclcpp::Service<custom_interfaces::srv::DropArtifact>::SharedPtr drop_artifact_service_;
 		
-		rclcpp::Client<swarm::srv::RemoveArtifact>::SharedPtr remove_artifact_client_;
-		rclcpp::Client<swarm::srv::SpawnArtifact>::SharedPtr spawn_artifact_client_;
+		rclcpp::Client<custom_interfaces::srv::RemoveArtifact>::SharedPtr remove_artifact_client_;
+		rclcpp::Client<custom_interfaces::srv::SpawnArtifact>::SharedPtr spawn_artifact_client_;
 
-		void pick_artifact_callback(const std::shared_ptr<rover_brain::srv::PickArtifact::Request> request,
-				std::shared_ptr<rover_brain::srv::PickArtifact::Response> response) {
+		void pick_artifact_callback(const std::shared_ptr<custom_interfaces::srv::PickArtifact::Request> request,
+				std::shared_ptr<custom_interfaces::srv::PickArtifact::Response> response) {
 			
 			// implement the logic for picking an artifact here
 			// the current implementation is targeted towards simulation, 
@@ -62,7 +62,7 @@ class Picker : public rclcpp::Node
 			RCLCPP_INFO(this->get_logger(), "Received request to pick artifact at (%.2f, %.2f, %.2f)",
 				request->artifact_x, request->artifact_y, request->artifact_z);
 			
-			auto remove_request = std::make_shared<swarm::srv::RemoveArtifact::Request>();
+			auto remove_request = std::make_shared<custom_interfaces::srv::RemoveArtifact::Request>();
 
 			std::string rover_name = this->get_parameter("rover_name").as_string();
 
@@ -95,8 +95,8 @@ class Picker : public rclcpp::Node
 
 		};
 
-		void drop_artifact_callback(const std::shared_ptr<rover_brain::srv::DropArtifact::Request> request,
-				std::shared_ptr<rover_brain::srv::DropArtifact::Response> response) {
+		void drop_artifact_callback(const std::shared_ptr<custom_interfaces::srv::DropArtifact::Request> request,
+				std::shared_ptr<custom_interfaces::srv::DropArtifact::Response> response) {
 			
 			// implement the logic for dropping an artifact here
 			// the current implementation is targeted towards simulation, 
@@ -104,7 +104,7 @@ class Picker : public rclcpp::Node
 			// in a physical rover, the logic would involve controlling the rover's arm to drop the artifact
 			RCLCPP_INFO(this->get_logger(), "Received request to drop artifact");
 			
-			auto spawn_request = std::make_shared<swarm::srv::SpawnArtifact::Request>();
+			auto spawn_request = std::make_shared<custom_interfaces::srv::SpawnArtifact::Request>();
 
 			std::string rover_name = this->get_parameter("rover_name").as_string();
 

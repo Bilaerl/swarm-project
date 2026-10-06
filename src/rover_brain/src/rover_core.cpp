@@ -3,7 +3,7 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
-#include "rover_brain/srv/pick_artifact.hpp"
+#include "custom_interfaces/srv/pick_artifact.hpp"
 
 using namespace std::chrono_literals;
 
@@ -14,11 +14,11 @@ class RoverCore : public rclcpp::Node
 		RoverCore(const std::string & rover_name)
 		: Node("rover_core"), rover_name_(rover_name), rover_inventory_(0), rover_state_(RoverState::IDLE)
 		{
-			pick_artifact_client_ = this->create_client<rover_brain::srv::PickArtifact>("picker/pick_artifact");
+			pick_artifact_client_ = this->create_client<custom_interfaces::srv::PickArtifact>("picker/pick_artifact");
 		}
 
 	private:
-		rclcpp::Client<rover_brain::srv::PickArtifact>::SharedPtr pick_artifact_client_;
+		rclcpp::Client<custom_interfaces::srv::PickArtifact>::SharedPtr pick_artifact_client_;
 		
 		const std::string rover_name_; // Name of the rover
 		const size_t max_inventory_ = 2; // Maximum number of artifacts the rover can carry at once
@@ -41,12 +41,12 @@ class RoverCore : public rclcpp::Node
 				RCLCPP_ERROR(this->get_logger(), "pick_artifact service not available. Exiting");
 			}
 
-			auto request = std::make_shared<rover_brain::srv::PickArtifact::Request>();
+			auto request = std::make_shared<custom_interfaces::srv::PickArtifact::Request>();
 			request->artifact_x = artifact_x;
 			request->artifact_y = artifact_y;
 			request->artifact_z = artifact_z;
 
-			auto async_request_callback = [this](rclcpp::Client<rover_brain::srv::PickArtifact>::SharedFuture future) {
+			auto async_request_callback = [this](rclcpp::Client<custom_interfaces::srv::PickArtifact>::SharedFuture future) {
 				auto response = future.get();
 				if (response->success) { // artifact picked sucessfully
 					

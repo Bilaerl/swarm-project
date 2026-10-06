@@ -9,26 +9,20 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(ros_gz_interfaces REQUIRED)
+find_package(custom_interfaces REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(gz-transport13 REQUIRED)
 find_package(gz-msgs10 REQUIRED)
-find_package(rosidl_default_generators REQUIRED) # For generating service interfaces
-
-# generate service interfaces
-# without this, the service definitions won't be generated and the code won't compile
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "srv/RemoveArtifact.srv"
-  "srv/SpawnArtifact.srv"
-)
 
 # create executables
 add_executable(artifact_manager src/artifact_manager.cpp)
 ament_target_dependencies(artifact_manager 
   rclcpp
   ros_gz_interfaces
+  custom_interfaces
   geometry_msgs 
   tf2
   tf2_ros
@@ -36,11 +30,6 @@ ament_target_dependencies(artifact_manager
   gz-transport13
   gz-msgs10
 )
-
-# link the generated service interfaces
-# this approach is used because both service definition and the nodes using it are in the same package
-rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-target_link_libraries(artifact_manager ${cpp_typesupport_target})
 
 # install needed file directories
 install(DIRECTORY 

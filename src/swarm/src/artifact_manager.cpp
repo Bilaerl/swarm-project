@@ -196,9 +196,6 @@ class ArtifactManager : public rclcpp::Node
         void remove_artifact_callback(const std::shared_ptr<swarm::srv::RemoveArtifact::Request> request,
                 std::shared_ptr<swarm::srv::RemoveArtifact::Response> response) {
             
-            RCLCPP_INFO(this->get_logger(), "Received request from %s to remove artifact at %.2f, %.2f, %.2f",
-                request->rover_name.c_str(), request->artifact_x, request->artifact_y, request->artifact_z);
-            
             float target_x = request->artifact_x;
             float target_y = request->artifact_y;
             float target_z = request->artifact_z;
@@ -208,6 +205,9 @@ class ArtifactManager : public rclcpp::Node
                 response->success = false;
                 return;
             }
+
+            RCLCPP_INFO(this->get_logger(), "Received request from %s to remove artifact at %.2f, %.2f, %.2f",
+                request->rover_name.c_str(), target_x, target_y, target_z);
 
             std::optional<Artifact> target_artifact;
 
@@ -297,8 +297,18 @@ class ArtifactManager : public rclcpp::Node
         void spawn_artifact_callback(const std::shared_ptr<swarm::srv::SpawnArtifact::Request> request,
                 std::shared_ptr<swarm::srv::SpawnArtifact::Response> response) {
             
+            float target_x = request->spawn_x;
+            float target_y = request->spawn_y;
+            float target_z = request->spawn_z;
+            
+            if (!compute_ground_truth_artifact_pose(request->rover_name, target_x, target_y, target_z)) {
+                RCLCPP_ERROR(this->get_logger(), "Rover %s ground truth pose not yet received from Gazebo. Try again later.", request->rover_name.c_str());
+                response->success = false;
+                return;
+            }
+
             RCLCPP_INFO(this->get_logger(), "Received request from %s to spawn artifact at %.2f, %.2f, %.2f",
-                request->rover_name.c_str(), request->spawn_x, request->spawn_y, request->spawn_z);
+                request->rover_name.c_str(), target_x, target_y, target_z);
             
             std::optional<Artifact> target_artifact;
 
@@ -332,9 +342,9 @@ class ArtifactManager : public rclcpp::Node
             // Construct standard Gazebo spawn request
             auto gz_req = std::make_shared<ros_gz_interfaces::srv::SpawnEntity::Request>();
             gz_req->entity_factory.name = target_artifact->name;
-            gz_req->entity_factory.pose.position.x = request->spawn_x;
-            gz_req->entity_factory.pose.position.y = request->spawn_y;
-            gz_req->entity_factory.pose.position.z = request->spawn_z;
+            gz_req->entity_factory.pose.position.x = target_x;
+            gz_req->entity_factory.pose.position.y = target_y;
+            gz_req->entity_factory.pose.position.z = target_z;
             gz_req->entity_factory.sdf_filename = artifact_sdf_file_path_;
             gz_req->entity_factory.allow_renaming = false; // don't allow Gazebo to rename the artifact if a name conflict occurs
 
@@ -364,9 +374,9 @@ class ArtifactManager : public rclcpp::Node
                 // add the artifact to dropped_artifacts_ with the new spawn coordinates
                 Artifact dropped_artifact;
                 dropped_artifact.name = target_artifact.value().name;
-                dropped_artifact.x = request->spawn_x;
-                dropped_artifact.y = request->spawn_y;
-                dropped_artifact.z = request->spawn_z;
+                dropped_artifact.x = target_x;
+                dropped_artifact.y = target_y;
+                dropped_artifact.z = target_z;
                 
                 dropped_artifacts_.push_back(dropped_artifact);
                 

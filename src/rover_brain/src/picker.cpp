@@ -102,17 +102,16 @@ class Picker : public rclcpp::Node
 			// the current implementation is targeted towards simulation, 
 			// where the artifact is spawned in Gazebo and added to the artifact manager's list of dropped artifacts
 			// in a physical rover, the logic would involve controlling the rover's arm to drop the artifact
-			RCLCPP_INFO(this->get_logger(), "Received request to drop artifact at (%.2f, %.2f, %.2f)",
-				request->drop_x, request->drop_y, request->drop_z);
+			RCLCPP_INFO(this->get_logger(), "Received request to drop artifact");
 			
 			auto spawn_request = std::make_shared<swarm::srv::SpawnArtifact::Request>();
 
 			std::string rover_name = this->get_parameter("rover_name").as_string();
 
 			spawn_request->rover_name = rover_name;
-			spawn_request->spawn_x = request->drop_x;
-			spawn_request->spawn_y = request->drop_y;
-			spawn_request->spawn_z = request->drop_z;
+			spawn_request->spawn_x = 1.0; // spawn the artifact 1 meter in front of the rover's base_link frame
+			spawn_request->spawn_y = 0.0;
+			spawn_request->spawn_z = 0.0;
 
 			auto spawn_future = spawn_artifact_client_->async_send_request(spawn_request);
 
@@ -127,12 +126,10 @@ class Picker : public rclcpp::Node
 			auto spawn_response = spawn_future.get();
 
 			if (spawn_response->success) {
-				RCLCPP_INFO(this->get_logger(), "Successfully dropped artifact at (%.2f, %.2f, %.2f)", 
-					request->drop_x, request->drop_y, request->drop_z);
+				RCLCPP_INFO(this->get_logger(), "Artifact successfully dropped");
 				response->success = true;
 			} else {
-				RCLCPP_ERROR(this->get_logger(), "Failed to drop artifact at (%.2f, %.2f, %.2f)", 
-					request->drop_x, request->drop_y, request->drop_z);
+				RCLCPP_ERROR(this->get_logger(), "Failed to drop artifact");
 				response->success = false;
 			}
 

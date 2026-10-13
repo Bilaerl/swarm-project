@@ -169,6 +169,6 @@
     <xacro:friction_coefficients link_name="front_right_wheel" />
     
     <!-- gazebo plugins -->
-    <xacro:include filename="$(find swarm)/models/rover/rover.gazebo" />
+    <xacro:include filename="$(find swarm_bringup)/models/rover/rover.gazebo" />
     
 </robot>

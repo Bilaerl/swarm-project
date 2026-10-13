@@ -10,7 +10,7 @@ from ament_index_python.packages import get_package_share_directory
 
 
 # gets path to rover urdf in the package share directory
-path_prefix = get_package_share_directory("swarm")
+path_prefix = get_package_share_directory("swarm_bringup")
 rover_xacro_file_path = os.path.join(path_prefix, "models", "rover", "rover.xacro")
 
 # gets path to rover brain launch file in the rover_brain package share directory

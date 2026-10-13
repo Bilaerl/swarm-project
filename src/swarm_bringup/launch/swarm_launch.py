@@ -8,7 +8,7 @@ from ament_index_python.packages import get_package_share_directory
 
 
 # gets paths to the gazebo worlds and models in the share directory
-path_prefix = get_package_share_directory("swarm")
+path_prefix = get_package_share_directory("swarm_bringup")
 gz_sim_world_file = os.path.join(path_prefix, "worlds", "swarm_world.sdf")
 gz_sim_models_folder = os.path.join(path_prefix, "models")
 
@@ -80,7 +80,7 @@ def generate_launch_description():
 
     # artifact manager node that will track the artifacts in the swarm world
     artifact_manager_node = Node(
-        package="swarm",
+        package="swarm_bringup",
         executable="artifact_manager",
         name="artifact_manager_node",
         output="screen",

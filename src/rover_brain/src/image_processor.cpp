@@ -41,9 +41,8 @@ class ImageProcessor : public rclcpp::Node {
                 [this](const sensor_msgs::msg::Image::SharedPtr image){this->image_subscription_callback_(image);}
             );
 
-            artifact_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_artifact_poses", 10);
-            rover_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("detected_rover_poses", 10);
-
+            artifact_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("image_processor/detected_artifact_poses", 10);
+            rover_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("image_processor/detected_rover_poses", 10);
 
             // Initialize the TF2 buffer and listener
             tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());

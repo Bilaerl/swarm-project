@@ -19,3 +19,9 @@
   ros_type_name: "ros_gz_interfaces/srv/SpawnEntity"
   gz_req_type_name: "gz.msgs.EntityFactory"
   gz_rep_type_name: "gz.msgs.Boolean"
+
+- service_name: "/world/swarm_world/set_pose"
+  ros_type_name: "ros_gz_interfaces/srv/SetEntityPose"
+  gz_req_type_name: "gz.msgs.Pose"
+  gz_rep_type_name: "gz.msgs.Boolean"
+  

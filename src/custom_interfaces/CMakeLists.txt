@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/DropArtifact.srv"
   "srv/RemoveArtifact.srv"
   "srv/SpawnArtifact.srv"
+  "srv/ResetArtifacts.srv"
 )
 
 ament_package()

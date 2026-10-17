@@ -16,11 +16,13 @@
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <geometry_msgs/msg/pose.hpp>
+#include <ros_gz_interfaces/srv/delete_entity.hpp>
+#include <ros_gz_interfaces/srv/spawn_entity.hpp>
+#include <ros_gz_interfaces/srv/set_entity_pose.hpp>
+#include <ros_gz_interfaces/msg/entity.hpp>
 #include "custom_interfaces/srv/remove_artifact.hpp"
 #include "custom_interfaces/srv/spawn_artifact.hpp"
-#include "ros_gz_interfaces/srv/delete_entity.hpp"
-#include "ros_gz_interfaces/srv/spawn_entity.hpp"
-#include "ros_gz_interfaces/msg/entity.hpp"
+#include "custom_interfaces/srv/reset_artifacts.hpp"
 
 using namespace std::chrono_literals;
 
@@ -71,8 +73,9 @@ class ArtifactManager : public rclcpp::Node
             // non-blocking callbacks will be placed on the default callback group (by not adding them to a specific callback group)
             
             // clients for Gazebo bridge services
-            gz_delete_client_ = this->create_client<ros_gz_interfaces::srv::DeleteEntity>("/world/swarm_world/remove");
-            gz_spawn_client_ = this->create_client<ros_gz_interfaces::srv::SpawnEntity>("/world/swarm_world/create");
+            gz_delete_entity_client_ = this->create_client<ros_gz_interfaces::srv::DeleteEntity>("/world/swarm_world/remove");
+            gz_spawn_entity_client_ = this->create_client<ros_gz_interfaces::srv::SpawnEntity>("/world/swarm_world/create");
+            gz_set_entity_pose_client_ = this->create_client<ros_gz_interfaces::srv::SetEntityPose>("/world/swarm_world/set_pose");
             
             // services for artifact removal and spawning
             remove_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -91,6 +94,14 @@ class ArtifactManager : public rclcpp::Node
                 spawn_artifact_callback_group_   // place the service on the spawn artifact callback group
             );
 
+            reset_artifacts_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+            reset_artifacts_service_ = this->create_service<custom_interfaces::srv::ResetArtifacts>(
+                "artifact_manager/reset_artifacts", [this](const std::shared_ptr<custom_interfaces::srv::ResetArtifacts::Request> request,
+                std::shared_ptr<custom_interfaces::srv::ResetArtifacts::Response> response) {this->reset_artifacts_callback(request, response);},
+                rclcpp::QoS(rclcpp::ServicesQoS()), // default QoS for services, does nothing new here
+                reset_artifacts_callback_group_   // place the service on the reset artifacts callback group
+            );
+
             gz_node_.Subscribe("/world/swarm_world/pose/info", &ArtifactManager::gazebo_pose_callback, this);
             
             
@@ -105,6 +116,7 @@ class ArtifactManager : public rclcpp::Node
         std::string artifact_sdf_file_path_;
         
         std::mutex artifact_mutex_;
+        std::vector<Artifact> initial_artifacts_; // to keep track of initial artifact poses, used to soft-reset the environment
         std::vector<Artifact> active_artifacts_;
         std::vector<Artifact> picked_artifacts_;
         std::vector<Artifact> nested_artifacts_;
@@ -112,14 +124,18 @@ class ArtifactManager : public rclcpp::Node
 
         gz::transport::Node gz_node_;
 
-        rclcpp::Client<ros_gz_interfaces::srv::DeleteEntity>::SharedPtr gz_delete_client_;
-        rclcpp::Client<ros_gz_interfaces::srv::SpawnEntity>::SharedPtr gz_spawn_client_;
-        
+        rclcpp::Client<ros_gz_interfaces::srv::DeleteEntity>::SharedPtr gz_delete_entity_client_;
+        rclcpp::Client<ros_gz_interfaces::srv::SpawnEntity>::SharedPtr gz_spawn_entity_client_;
+        rclcpp::Client<ros_gz_interfaces::srv::SetEntityPose>::SharedPtr gz_set_entity_pose_client_;
+
         rclcpp::CallbackGroup::SharedPtr remove_artifact_callback_group_;
         rclcpp::Service<custom_interfaces::srv::RemoveArtifact>::SharedPtr remove_artifact_service_;
         
         rclcpp::CallbackGroup::SharedPtr spawn_artifact_callback_group_;
         rclcpp::Service<custom_interfaces::srv::SpawnArtifact>::SharedPtr spawn_artifact_service_;
+
+        rclcpp::CallbackGroup::SharedPtr reset_artifacts_callback_group_;
+        rclcpp::Service<custom_interfaces::srv::ResetArtifacts>::SharedPtr reset_artifacts_service_;
         
         void extract_artifacts_from_file(const std::string& file_path)
         {
@@ -151,9 +167,12 @@ class ArtifactManager : public rclcpp::Node
                 // Note: Coordinates are parsed directly into floats
                 if (ss >> artifact.name >> artifact.x >> artifact.y >> artifact.z) {
                     std::scoped_lock lock(artifact_mutex_);
-                    active_artifacts_.push_back(artifact);
+                    initial_artifacts_.push_back(artifact);
                 }
             }
+
+            // initialise active artifacts with the initial set
+            active_artifacts_ = initial_artifacts_;
             
             file.close();
             RCLCPP_INFO(this->get_logger(), "Extracted %zu artifacts from file.", active_artifacts_.size());
@@ -247,7 +266,7 @@ class ArtifactManager : public rclcpp::Node
                 return;
             }
 
-            if (!gz_delete_client_->wait_for_service(std::chrono::seconds(1))) {
+            if (!gz_delete_entity_client_->wait_for_service(std::chrono::seconds(1))) {
                 RCLCPP_ERROR(this->get_logger(), "Gazebo deletion bridge service unavailable.");
                 response->success = false;
                 return;
@@ -264,10 +283,10 @@ class ArtifactManager : public rclcpp::Node
             // function returns — populating it later, inside an async callback, is too late).
             //
             // this blocks the thread handling remove_artifact_service_, but since
-            // gz_delete_client_ and remove_artifact_service_ live on separate callback groups
+            // gz_delete_entity_client_ and remove_artifact_service_ live on separate callback groups
             // a MultiThreadedExecutor can still service the client's response on a
             // different thread while this one waits. See main().
-            auto gz_future = gz_delete_client_->async_send_request(gz_req);
+            auto gz_future = gz_delete_entity_client_->async_send_request(gz_req);
 
             auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
 
@@ -341,7 +360,7 @@ class ArtifactManager : public rclcpp::Node
                 return;
             }
 
-            if (!gz_spawn_client_->wait_for_service(std::chrono::seconds(1))) {
+            if (!gz_spawn_entity_client_->wait_for_service(std::chrono::seconds(1))) {
                 RCLCPP_ERROR(this->get_logger(), "Gazebo spawn bridge service unavailable.");
                 response->success = false;
                 return;
@@ -358,7 +377,7 @@ class ArtifactManager : public rclcpp::Node
             gz_req->entity_factory.allow_renaming = false; // don't allow Gazebo to rename the artifact if a name conflict occurs
 
             // send the request and block this callback until it resolves
-            auto gz_future = gz_spawn_client_->async_send_request(gz_req);
+            auto gz_future = gz_spawn_entity_client_->async_send_request(gz_req);
 
             auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
 
@@ -409,6 +428,98 @@ class ArtifactManager : public rclcpp::Node
 
             return dist <= nest_radius_;
         }
+
+        void reset_artifacts_callback(const std::shared_ptr<custom_interfaces::srv::ResetArtifacts::Request> request,
+                std::shared_ptr<custom_interfaces::srv::ResetArtifacts::Response> response) {
+            
+            RCLCPP_INFO(this->get_logger(), "Received request to reset artifacts.");
+            
+            std::scoped_lock lock(artifact_mutex_);
+
+            // respawn picked artifacts at where they were last picked
+            // this is done so that the next step can find them in the Gazebo world tree
+            for (const auto& artifact : picked_artifacts_) {
+                // construct standard Gazebo spawn request
+                auto gz_req = std::make_shared<ros_gz_interfaces::srv::SpawnEntity::Request>();
+                gz_req->entity_factory.name = artifact.name;
+                gz_req->entity_factory.pose.position.x = artifact.x;
+                gz_req->entity_factory.pose.position.y = artifact.y;
+                gz_req->entity_factory.pose.position.z = artifact.z;
+                gz_req->entity_factory.sdf_filename = artifact_sdf_file_path_;
+                gz_req->entity_factory.allow_renaming = false; // don't allow Gazebo to rename the artifact if a name conflict occurs
+
+                if (!gz_spawn_entity_client_->wait_for_service(std::chrono::seconds(1))) {
+                    RCLCPP_ERROR(this->get_logger(), "Gazebo spawn bridge service unavailable.");
+                    response->success = false;
+                    return;
+                }
+
+                auto gz_future = gz_spawn_entity_client_->async_send_request(gz_req);
+
+                auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
+
+                if (wait_result != std::future_status::ready) {
+                    RCLCPP_ERROR(this->get_logger(), "Timed out waiting for Gazebo spawn response.");
+                    response->success = false;
+                    return;
+                }
+
+                auto gz_response = gz_future.get();
+
+                if (!gz_response->success) {
+                    RCLCPP_ERROR(this->get_logger(), "Failed to respawn picked artifact %s in Gazebo.", artifact.name.c_str());
+                    response->success = false;
+                    return;
+                }
+            }
+
+            // reset all artifact poses to their initial positions
+            for (const auto& artifact : initial_artifacts_) {
+                // construct standard Gazebo set pose request
+                auto gz_req = std::make_shared<ros_gz_interfaces::srv::SetEntityPose::Request>();
+                gz_req->entity.name = artifact.name;
+                gz_req->entity.type = ros_gz_interfaces::msg::Entity::MODEL;
+                gz_req->pose.position.x = artifact.x;
+                gz_req->pose.position.y = artifact.y;
+                gz_req->pose.position.z = artifact.z;
+                gz_req->pose.orientation.x = 0.0;
+                gz_req->pose.orientation.y = 0.0;
+                gz_req->pose.orientation.z = 0.0;
+                gz_req->pose.orientation.w = 1.0;
+
+                if (!gz_set_entity_pose_client_->wait_for_service(std::chrono::seconds(1))) {
+                    RCLCPP_ERROR(this->get_logger(), "Gazebo set pose bridge service unavailable.");
+                    response->success = false;
+                    return;
+                }
+
+                auto gz_future = gz_set_entity_pose_client_->async_send_request(gz_req);
+
+                auto wait_result = gz_future.wait_for(std::chrono::seconds(2));
+
+                if (wait_result != std::future_status::ready) {
+                    RCLCPP_ERROR(this->get_logger(), "Timed out waiting for Gazebo set pose response.");
+                    response->success = false;
+                    return;
+                }
+
+                auto gz_response = gz_future.get();
+
+                if (!gz_response->success) {
+                    RCLCPP_ERROR(this->get_logger(), "Failed to reset artifact %s in Gazebo.", artifact.name.c_str());
+                    response->success = false;
+                    return;
+                }
+            }
+
+            // clear picked and nested artifacts, and reset active artifacts to initial state
+            picked_artifacts_.clear();
+            nested_artifacts_.clear();
+            active_artifacts_ = initial_artifacts_;
+
+            RCLCPP_INFO(this->get_logger(), "Successfully reset all artifacts to their initial positions.");
+            response->success = true;
+        }
 		
 };
 
@@ -419,7 +530,7 @@ int main(int argc, char * argv[])
 	auto node = std::make_shared<ArtifactManager>();
 
 	// a MultiThreadedExecutor is required here: remove_artifact_callback blocks its thread
-	// waiting on gz_delete_client_'s future, and that future can only be fulfilled once
+	// waiting on gz_delete_entity_client_'s future, and that future can only be fulfilled once
 	// the executor processes the incoming Gazebo response on a different thread. With a
 	// single-threaded executor (or spin()), this would deadlock the node.
 	rclcpp::executors::MultiThreadedExecutor executor;

@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(custom_interfaces REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(image_geometry REQUIRED)
@@ -31,6 +32,7 @@ ament_target_dependencies(image_processor
   custom_interfaces
   sensor_msgs
   geometry_msgs
+  nav_msgs
   cv_bridge
   OpenCV
   image_geometry

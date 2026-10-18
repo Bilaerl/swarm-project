@@ -4,6 +4,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "custom_interfaces/srv/pick_artifact.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 
 using namespace std::chrono_literals;
 
@@ -15,14 +16,23 @@ class RoverCore : public rclcpp::Node
 		: Node("rover_core"), rover_name_(rover_name), rover_inventory_(0), rover_state_(RoverState::IDLE)
 		{
 			pick_artifact_client_ = this->create_client<custom_interfaces::srv::PickArtifact>("picker/pick_artifact");
+			odometry_subscription_ = this->create_subscription<nav_msgs::msg::Odometry>("odometry/filtered", 10, 
+				[this](const nav_msgs::msg::Odometry::SharedPtr msg) {this->odometry_subscription_callback_(msg);}
+			);
+
+
 		}
 
 	private:
 		rclcpp::Client<custom_interfaces::srv::PickArtifact>::SharedPtr pick_artifact_client_;
+		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscription_;
 		
 		const std::string rover_name_; // Name of the rover
-		const size_t max_inventory_ = 2; // Maximum number of artifacts the rover can carry at once
+		const size_t max_inventory_ = 1; // Maximum number of artifacts the rover can carry at once
 		size_t rover_inventory_;
+		float x, y, z;
+
+
 		enum class RoverState { 
 			IDLE,   // The rover is idle and waiting for a task
 			SEARCHING,  // The rover is searching for an artifact to pick up
@@ -73,6 +83,12 @@ class RoverCore : public rclcpp::Node
 
 		void update_rover_state(RoverState new_state) {
 			rover_state_ = new_state;
+		}
+
+		void odometry_subscription_callback_(const nav_msgs::msg::Odometry::SharedPtr msg) {
+			x = msg->pose.pose.position.x;
+			y = msg->pose.pose.position.y;
+			z = msg->pose.pose.position.z;
 		}
 
 

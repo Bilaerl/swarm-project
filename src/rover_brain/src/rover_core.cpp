@@ -1,10 +1,12 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <cmath>
 
 #include "rclcpp/rclcpp.hpp"
 #include "custom_interfaces/srv/pick_artifact.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 using namespace std::chrono_literals;
 
@@ -19,6 +21,9 @@ class RoverCore : public rclcpp::Node
 			odometry_subscription_ = this->create_subscription<nav_msgs::msg::Odometry>("odometry/filtered", 10, 
 				[this](const nav_msgs::msg::Odometry::SharedPtr msg) {this->odometry_subscription_callback_(msg);}
 			);
+			artifact_poses_subscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("image_processor/detected_artifact_poses", 10, 
+				[this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {this->artifact_poses_subscription_callback_(msg);}
+			);
 
 
 		}
@@ -26,11 +31,13 @@ class RoverCore : public rclcpp::Node
 	private:
 		rclcpp::Client<custom_interfaces::srv::PickArtifact>::SharedPtr pick_artifact_client_;
 		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscription_;
+		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr artifact_poses_subscription_;
 		
 		const std::string rover_name_; // Name of the rover
 		const size_t max_inventory_ = 1; // Maximum number of artifacts the rover can carry at once
 		size_t rover_inventory_;
 		float x, y, z;
+		float artifact_r, artifact_theta;
 
 
 		enum class RoverState { 
@@ -41,7 +48,7 @@ class RoverCore : public rclcpp::Node
 			DROPPING  // The rover is in the process of dropping off an artifact at the swarm nest
 		} rover_state_;
 
-		void pick_artifact(int artifact_x, int artifact_y, int artifact_z) {
+		void pick_artifact(float artifact_x, float artifact_y, float artifact_z) {
 
 			if (!pick_artifact_client_->wait_for_service(1s)) {
 				if (!rclcpp::ok()) {
@@ -89,6 +96,15 @@ class RoverCore : public rclcpp::Node
 			x = msg->pose.pose.position.x;
 			y = msg->pose.pose.position.y;
 			z = msg->pose.pose.position.z;
+		}
+
+		void artifact_poses_subscription_callback_(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+			artifact_r = std::sqrt(std::pow(msg->pose.position.x, 2) + std::pow(msg->pose.position.y, 2));
+			artifact_theta = std::atan2(msg->pose.position.y, msg->pose.position.x);
+
+			if (artifact_r < 1.0 && rover_inventory_ < max_inventory_ && rover_state_ == RoverState::SEARCHING) {
+				pick_artifact(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+			}
 		}
 
 

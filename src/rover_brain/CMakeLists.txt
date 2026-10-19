@@ -24,7 +24,12 @@ add_executable(picker src/picker.cpp)
 ament_target_dependencies(picker rclcpp custom_interfaces)
 
 add_executable(rover_core src/rover_core.cpp)
-ament_target_dependencies(rover_core rclcpp custom_interfaces)
+ament_target_dependencies(rover_core
+  rclcpp
+  custom_interfaces
+  nav_msgs
+  geometry_msgs
+)
 
 add_executable(image_processor src/image_processor.cpp)
 ament_target_dependencies(image_processor
@@ -32,7 +37,6 @@ ament_target_dependencies(image_processor
   custom_interfaces
   sensor_msgs
   geometry_msgs
-  nav_msgs
   cv_bridge
   OpenCV
   image_geometry

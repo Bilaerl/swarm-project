@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(custom_interfaces REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -27,6 +28,7 @@ add_executable(rover_core src/rover_core.cpp)
 ament_target_dependencies(rover_core
   rclcpp
   custom_interfaces
+  std_msgs
   nav_msgs
   geometry_msgs
 )

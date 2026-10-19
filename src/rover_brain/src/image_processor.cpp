@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <limits>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -131,6 +132,11 @@ class ImageProcessor : public rclcpp::Node {
                 }
             }
 
+            // PoseStamped in optical frame
+            geometry_msgs::msg::PoseStamped optical_pose;
+            optical_pose.header.stamp = image_header.stamp;
+            optical_pose.header.frame_id = image_header.frame_id; // e.g. "rover_01/camera_link_optical"
+
             if (found) {
                 // ray projection in camera optical frame
                 cv::Point2d rectified_pt = camera_model_.rectifyPoint(best_centroid);
@@ -141,11 +147,7 @@ class ImageProcessor : public rclcpp::Node {
                 float bbox_height_px = best_bbox.height;
                 float estimated_z = (real_world_height * focal_length_y) / bbox_height_px;
 
-                // PoseStamped in optical frame
-                geometry_msgs::msg::PoseStamped optical_pose;
-                optical_pose.header.stamp = image_header.stamp;
-                optical_pose.header.frame_id = image_header.frame_id; // e.g. "rover_01/camera_link_optical"
-
+                // compute object 3D position in the optical frame
                 optical_pose.pose.position.x = ray.x * estimated_z;
                 optical_pose.pose.position.y = ray.y * estimated_z;
                 optical_pose.pose.position.z = ray.z * estimated_z;
@@ -156,7 +158,23 @@ class ImageProcessor : public rclcpp::Node {
                 if (transform_to_rover_base_coordinate_frame(optical_pose, base_pose)) {
                     publisher->publish(base_pose);
                 }
+
+            } else {
+                // no object found
+                // publish infs so node subscribed to this publisher will not just get silence
+                optical_pose.pose.position.x = std::numeric_limits<float>::infinity();
+                optical_pose.pose.position.y = std::numeric_limits<float>::infinity();
+                optical_pose.pose.position.z = std::numeric_limits<float>::infinity();
+                optical_pose.pose.orientation.w = 1.0;
+
+                // change frame_id to base_link so that the subscriber knows this is in the rover's base_link frame
+                size_t pos = optical_pose.header.frame_id.find("camera_link_optical");
+                optical_pose.header.frame_id = optical_pose.header.frame_id.replace(pos, std::string("camera_link_optical").length(), "base_link");
+
+                publisher->publish(optical_pose);
+                
             }
+
         }
 
         bool transform_to_rover_base_coordinate_frame(const geometry_msgs::msg::PoseStamped& input_pose, geometry_msgs::msg::PoseStamped& output_pose){

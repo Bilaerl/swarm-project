@@ -6,6 +6,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "custom_interfaces/srv/pick_artifact.hpp"
+#include "custom_interfaces/msg/polar_vector.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
@@ -25,7 +26,7 @@ class RoverCore : public rclcpp::Node
 			artifact_poses_subscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("image_processor/detected_artifact_poses", 10, 
 				[this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {this->artifact_poses_subscription_callback_(msg);}
 			);
-
+			artifact_polar_vector_publisher_ = this->create_publisher<custom_interfaces::msg::PolarVector>("rover_core/artifact_polar_vectors", 10);
 
 		}
 
@@ -33,6 +34,7 @@ class RoverCore : public rclcpp::Node
 		rclcpp::Client<custom_interfaces::srv::PickArtifact>::SharedPtr pick_artifact_client_;
 		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscription_;
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr artifact_poses_subscription_;
+		rclcpp::Publisher<custom_interfaces::msg::PolarVector>::SharedPtr artifact_polar_vector_publisher_;
 		
 		const std::string rover_name_; // Name of the rover
 		const size_t max_inventory_ = 1; // Maximum number of artifacts the rover can carry at once
@@ -71,9 +73,9 @@ class RoverCore : public rclcpp::Node
 					rover_inventory_++;
 
 					// clear the artifact pose to avoid attempting to pick up the same artifact again
-					artifact_x = std::numeric_limits<float>::infinity();
-					artifact_y = std::numeric_limits<float>::infinity();
-					artifact_z = std::numeric_limits<float>::infinity();
+					this->artifact_x = std::numeric_limits<float>::infinity();
+					this->artifact_y = std::numeric_limits<float>::infinity();
+					this->artifact_z = std::numeric_limits<float>::infinity();
 
 					if (rover_inventory_ >= max_inventory_) {
 						update_rover_state(RoverState::RETURNING);
@@ -124,7 +126,13 @@ class RoverCore : public rclcpp::Node
 
 				default:
 					break;
-			} 
+			}
+
+			// Publish the polar vector to the artifact_polar_vector topic
+			custom_interfaces::msg::PolarVector polar_vector_msg;
+			polar_vector_msg.range = artifact_r;
+			polar_vector_msg.theta = artifact_theta;
+			artifact_polar_vector_publisher_->publish(polar_vector_msg);
 		}
 
 		void artifact_poses_subscription_callback_(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {

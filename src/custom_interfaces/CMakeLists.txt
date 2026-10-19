@@ -17,6 +17,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/RemoveArtifact.srv"
   "srv/SpawnArtifact.srv"
   "srv/ResetArtifacts.srv"
+  "msg/PolarVector.msg"
 )
 
 ament_package()

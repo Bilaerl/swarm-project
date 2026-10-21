@@ -47,10 +47,7 @@ def generate_launch_description():
         name="picker_node",
         namespace=rover_name,
         arguments=[rover_name],
-        parameters=[{
-            "use_sim_time": use_sim_time,
-            "rover_name": rover_name    # needed to pass name to artifact manager in simulation, can be removed on physical rover
-        }],
+        parameters=[{"use_sim_time": use_sim_time}],
         output="screen"
     )
 
@@ -81,11 +78,22 @@ def generate_launch_description():
         output="screen"
     )
 
+    radio_node = Node(
+        package="rover_brain",
+        executable="radio",
+        name="radio_node",
+        namespace=rover_name,
+        arguments=[rover_name], # used to set rover_name
+        parameters=[{"use_sim_time": use_sim_time}],
+        output="screen"
+    )
+
     return LaunchDescription([
         rover_name_arg,
         use_sim_time_arg,
         rover_core_node,
         picker_node,
         ekf_filter_node,
-        image_processor_node
+        image_processor_node,
+        radio_node
     ])

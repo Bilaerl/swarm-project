@@ -98,6 +98,22 @@ def generate_launch_description():
         output="screen"
     )
 
+    # publish static transform from world to robot's odom frame using spawn coordinates
+    # this is useful for connecting all robots to the world frame, that helps with the logic for locating the swarm nest
+    robot_to_world_static_tf_publisher_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name=[rover_name, "_to_world_static_tf_publisher_node"],
+        arguments=[
+            "--x", x,
+            "--y", y,
+            "--z", y,
+            "--yaw", "0.0", "--pitch", "0.0", "--roll", "0.0",
+            "--frame-id", "world",
+            "--child-frame-id", [rover_name, "/odom"]
+        ]
+    )
+
     rover_brain_launch = IncludeLaunchDescription(
         launch_description_source=PythonLaunchDescriptionSource(rover_brain_launch_file_path),
         launch_arguments={
@@ -113,6 +129,7 @@ def generate_launch_description():
         rover_z_arg,
         robot_state_publisher_node,
         robot_spawn_node,
+        robot_to_world_static_tf_publisher_node,
         ros_gz_bridge_node,
         rover_brain_launch,
     ])

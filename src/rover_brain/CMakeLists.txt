@@ -27,24 +27,33 @@ ament_target_dependencies(picker rclcpp custom_interfaces)
 add_executable(rover_core src/rover_core.cpp)
 ament_target_dependencies(rover_core
   rclcpp
-  custom_interfaces
   std_msgs
   nav_msgs
   geometry_msgs
+  custom_interfaces
 )
 
 add_executable(image_processor src/image_processor.cpp)
 ament_target_dependencies(image_processor
   rclcpp
-  custom_interfaces
-  sensor_msgs
-  geometry_msgs
+  tf2
+  tf2_ros
   cv_bridge
   OpenCV
   image_geometry
+  sensor_msgs
+  geometry_msgs
+  tf2_geometry_msgs
+  custom_interfaces
+)
+
+add_executable(radio src/radio.cpp)
+ament_target_dependencies(radio
+  rclcpp
   tf2
   tf2_ros
-  tf2_geometry_msgs
+  geometry_msgs
+  custom_interfaces
 )
 
 # install needed file directories
@@ -59,6 +68,7 @@ install(TARGETS
   picker
   rover_core
   image_processor
+  radio
   DESTINATION lib/${PROJECT_NAME}
 )
 

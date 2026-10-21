@@ -1,15 +1,20 @@
 import functools
 import numpy as np
+
 import rclpy
-import tf2_ros
 from rclpy.node import Node
+from std_msgs.msg import Int32
 from geometry_msgs.msg import Twist, Pose
 from sensor_msgs.msg import LaserScan
-from custom_interfaces.srv import ResetArtifacts
-from ros_gz_interfaces.srv import SetEntityPose
 from ros_gz_interfaces.msg import Entity
+from custom_interfaces.msg import PolarVector
+from ros_gz_interfaces.srv import SetEntityPose
+from custom_interfaces.srv import ResetArtifacts
+
 from gymnasium import spaces
 from pettingzoo import ParallelEnv
+
+
 
 class SwarmForagingEnvironment(ParallelEnv, Node):
     metadata = {"name": "swarm_foraging_environment_v0",}
@@ -20,43 +25,37 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         
         self.possible_agents = list(rovers_dict.keys())
         self.agents = self.possible_agents[:]
-        self.rover_initial_poses = rovers_dict
 
-        self.world_name = "swarm_world"
         
         # internal state tracking
-        self.is_carrying = {agent: 0 for agent in self.possible_agents}
-        self.latest_scans = {agent: np.ones(8, dtype=np.float32) * 5.0 for agent in self.possible_agents}
+        self._world_name = "swarm_world"
+        self._rover_initial_poses = rovers_dict
+        self._is_carrying = {agent: 0 for agent in self.possible_agents}
+        self._latest_lidar_scans = {agent: np.ones(8, dtype=np.float32) * 5.0 for agent in self.possible_agents}
+        self._latest_nest_vectors = {agent: {"r":np.inf, "theta":np.inf} for agent in self.possible_agents}
+        self._latest_target_artifact_vectors = {agent: {"r":np.inf, "theta":np.inf} for agent in self.possible_agents}
 
         # ROS2 Publishers & Subscribers
-        self.cmd_pubs = {}
+        self._cmd_vel_pubs = {}
         for agent in self.possible_agents:
             self.cmd_pubs[agent] = self.create_publisher(Twist, f"/{agent}/cmd_vel", 10)
-            self.create_subscription(
-                LaserScan, f"/{agent}/scan", 
-                lambda msg, a=agent: self._scan_callback(msg, a), 10
-            )
-
-        # TF2 Buffer for Nest Beacon tracking
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+            self.create_subscription(Int32, f"/{agent}/rover_core/rover_inventory", lambda msg, a=agent: self._rover_inventory_callback(msg, a), 10)
+            self.create_subscription(LaserScan, f"/{agent}/scan", lambda msg, a=agent: self._scan_callback(msg, a), 10)
+            self.create_subscription(PolarVector, f"/{agent}/radio/nest_vector", lambda msg, a=agent: self._nest_vector_callback(msg, a), 10)
+            self.create_subscription(PolarVector, f"/{agent}/rover_core/target_artifact_vector", lambda msg, a=agent: self._target_artifact_vector_callback(msg, a), 10)
 
         # Gazebo Set Entity Pose Service Client
-        self.set_pose_client = self.create_client(
-            SetEntityPose, f"/world/{self.world_name}/set_pose"
-        )
+        self.set_pose_client = self.create_client(SetEntityPose, f"/world/{self._world_name}/set_pose")
         while not self.set_pose_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info("Waiting for Gazebo set_pose service...")
 
-        self.reset_artifacts_client = self.create_client(
-            ResetArtifacts, "/artifact_manager/reset_artifacts"
-        )
+        self.reset_artifacts_client = self.create_client(ResetArtifacts, "/artifact_manager/reset_artifacts")
         while not self.reset_artifacts_client.wait_for_service(timeout_sec=1.0):
                     self.get_logger().info("Waiting for Artifact Manager reset service...")
 
     def reset(self, seed=None, options=None):
         self.agents = self.possible_agents[:]
-        self.is_carrying = {agent: 0 for agent in self.possible_agents}
+        self._is_carrying = {agent: 0 for agent in self.possible_agents}
         
         # stop all rovers immediately
         for agent in self.agents:
@@ -71,9 +70,9 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
             
             # set initial position and orientation (quaternion w=1.0)
             target_pose = Pose()
-            target_pose.position.x = self.rover_initial_poses[agent]["x"]
-            target_pose.position.y = self.rover_initial_poses[agent]["y"]
-            target_pose.position.z = self.rover_initial_poses[agent]["z"]
+            target_pose.position.x = self._rover_initial_poses[agent]["x"]
+            target_pose.position.y = self._rover_initial_poses[agent]["y"]
+            target_pose.position.z = self._rover_initial_poses[agent]["z"]
             target_pose.orientation.w = 1.0
             pose_req.pose = target_pose
             
@@ -117,7 +116,7 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
             
             # simple reward calculation (Step penalty + collision penalty if LiDAR < 0.4m)
             reward = -0.1
-            if np.any(self.latest_scans[agent] < 0.4):
+            if np.any(self._latest_lidar_scans[agent] < 0.4):
                 reward -= 5.0
             
             rewards[agent] = reward
@@ -138,16 +137,9 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
     def action_space(self, agent):
         return spaces.Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
 
-    def _scan_callback(self, msg, agent_id):
-        # bin 360-degree LiDAR scan into 8 directional sectors
-        ranges = np.array(msg.ranges)
-        ranges[np.isinf(ranges)] = msg.range_max
-        binned = np.array_split(ranges, 8)
-        self.latest_scans[agent_id] = np.array([b.min() for b in binned], dtype=np.float32)
-
     def _get_observation(self, agent_id):
         # get LiDAR bins
-        lidar_obs = self.latest_scans[agent_id]
+        lidar_obs = self._latest_lidar_scans[agent_id]
         
         # get relative nest beacon vector via TF2
         r_nest, theta_nest = 0.0, 0.0
@@ -163,10 +155,26 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         # placeholder artifact relative pose (x, y) from image processor cache
         artifact_obs = np.array([0.0, 0.0], dtype=np.float32)
         
-        carrying_flag = np.array([float(self.is_carrying[agent_id])], dtype=np.float32)
+        carrying_flag = np.array([float(self._is_carrying[agent_id])], dtype=np.float32)
 
         # concatenate into 13-dimensional observation vector
         return np.concatenate([lidar_obs, artifact_obs, np.array([r_nest, theta_nest]), carrying_flag])
+
+    def _scan_callback(self, msg, agent_id):
+        # bin 360-degree LiDAR scan into 8 directional sectors
+        ranges = np.array(msg.ranges)
+        ranges[np.isinf(ranges)] = msg.range_max
+        binned = np.array_split(ranges, 8)
+        self._latest_lidar_scans[agent_id] = np.array([b.min() for b in binned], dtype=np.float32)
+    
+    def _rover_inventory_callback(self, msg, agent_id):
+        pass
+
+    def _nest_vector_callback(msg, agent_id):
+        pass
+
+    def _target_artifact_vector_callback(msg, agent_id):
+        pass
 
     def _call_artifact_manager_reset(self):
         req = ResetArtifacts.Request()
@@ -180,6 +188,7 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         except Exception as e:
             self.get_logger().error(f"Service call failed: {e}")
             return False
+
 
 
 def parse_rover_spawn_config(rover_spawn_config_file_path):

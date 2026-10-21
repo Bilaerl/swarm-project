@@ -9,7 +9,7 @@
 #include "custom_interfaces/msg/polar_vector.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "std_msgs/msg/int32.hpp"
+#include "std_msgs/msg/float32.hpp"
 
 using namespace std::chrono_literals;
 
@@ -27,9 +27,9 @@ class RoverCore : public rclcpp::Node
 			artifact_poses_subscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("image_processor/detected_artifact_poses", 10, 
 				[this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {this->artifact_poses_subscription_callback_(msg);}
 			);
-			artifact_polar_vector_publisher_ = this->create_publisher<custom_interfaces::msg::PolarVector>("rover_core/artifact_polar_vectors", 10);
-			rover_inventory_publisher_ = this->create_publisher<std_msgs::msg::Int32>("rover_core/rover_inventory", 10);
-			inventory_publisher_timer_ = this->create_timer(500ms, [this]() { this->publish_inventory_(); });
+			artifact_polar_vector_publisher_ = this->create_publisher<custom_interfaces::msg::PolarVector>("rover_core/target_artifact_vector", 10);
+			rover_inventory_status_publisher_ = this->create_publisher<std_msgs::msg::Float32>("rover_core/rover_inventory_status", 10);
+			inventory_status_publisher_timer_ = this->create_timer(100ms, [this]() { this->publish_inventory_status(); });
 
 		}
 
@@ -38,8 +38,8 @@ class RoverCore : public rclcpp::Node
 		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscription_;
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr artifact_poses_subscription_;
 		rclcpp::Publisher<custom_interfaces::msg::PolarVector>::SharedPtr artifact_polar_vector_publisher_;
-		rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr rover_inventory_publisher_;
-		rclcpp::TimerBase::SharedPtr inventory_publisher_timer_;
+		rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr rover_inventory_status_publisher_;
+		rclcpp::TimerBase::SharedPtr inventory_status_publisher_timer_;
 
 		const std::string rover_name_; // Name of the rover
 		const size_t max_inventory_ = 1; // Maximum number of artifacts the rover can carry at once
@@ -169,10 +169,10 @@ class RoverCore : public rclcpp::Node
 
 		}
 		
-		void publish_inventory_() {
-			std_msgs::msg::Int32 inventory_msg;
-			inventory_msg.data = rover_inventory_;
-			rover_inventory_publisher_->publish(inventory_msg);
+		void publish_inventory_status() {
+			std_msgs::msg::Float32 inventory_msg;
+			inventory_msg.data = rover_inventory_ / max_inventory_;  // how full the inventory is (0 is empty, 1 is full)
+			rover_inventory_status_publisher_->publish(inventory_msg);
 		}
 
 };

@@ -40,8 +40,7 @@ struct Artifact
 class ArtifactManager : public rclcpp::Node
 {
     public:
-        ArtifactManager()
-        : Node("artifact_manager"), matching_threshold_(0.5f)
+        ArtifactManager() : Node("artifact_manager"), matching_threshold_(0.5f)
         {
             // parameters for artifact SDF file path and artifacts spawn config file path
             this->declare_parameter<std::string>("artifact_sdf_file_path", "");

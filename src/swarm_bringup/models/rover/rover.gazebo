@@ -2,8 +2,7 @@
 <robot>
     <gazebo>
         <!--diff drive plugin-->
-        <plugin filename="gz-sim-diff-drive-system"
-                name="gz::sim::systems::DiffDrive">
+        <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
             <left_joint>front_left_wheel_joint</left_joint>
             <left_joint>rear_left_wheel_joint</left_joint>
             <right_joint>front_right_wheel_joint</right_joint>
@@ -18,8 +17,7 @@
         </plugin>
 
         <!-- joint state publisher plugin -->
-        <plugin filename="gz-sim-joint-state-publisher-system"
-                name="gz::sim::systems::JointStatePublisher">
+        <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
             <topic>$(arg robot_name)/joint_states</topic>
             <joint_name>front_left_wheel_joint</joint_name>
             <joint_name>rear_left_wheel_joint</joint_name>
@@ -28,8 +26,7 @@
         </plugin>
 
         <!-- imu sensor plugin -->
-        <plugin filename="gz-sim-imu-system"
-            name="gz::sim::systems::Imu">
+        <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
         </plugin>
     </gazebo>
 

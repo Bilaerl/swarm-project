@@ -14,8 +14,7 @@ using namespace std::chrono_literals;
 class Picker : public rclcpp::Node
 {
 	public:
-		Picker()
-		: Node("picker")
+		Picker() : Node("picker")
 		{
 			// the rover_name parameter can be removed when the rover is physical
 			// it is only needed for simulation to pass the rover's name to the artifact manager

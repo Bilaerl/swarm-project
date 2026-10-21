@@ -14,12 +14,8 @@ using namespace std::chrono_literals;
 class Picker : public rclcpp::Node
 {
 	public:
-		Picker() : Node("picker")
+		Picker(const std::string &rover_name) : Node("picker"), rover_name_(rover_name)
 		{
-			// the rover_name parameter can be removed when the rover is physical
-			// it is only needed for simulation to pass the rover's name to the artifact manager
-			this->declare_parameter<std::string>("rover_name", "");
-
 			// services
 			pick_artifact_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 			pick_artifact_service_ = this->create_service<custom_interfaces::srv::PickArtifact>("picker/pick_artifact", [this](const std::shared_ptr<custom_interfaces::srv::PickArtifact::Request> request,
@@ -42,6 +38,8 @@ class Picker : public rclcpp::Node
 
 
 	private:
+		const std::string rover_name_;
+
 		rclcpp::CallbackGroup::SharedPtr pick_artifact_callback_group_;
 		rclcpp::Service<custom_interfaces::srv::PickArtifact>::SharedPtr pick_artifact_service_;
 
@@ -63,9 +61,7 @@ class Picker : public rclcpp::Node
 			
 			auto remove_request = std::make_shared<custom_interfaces::srv::RemoveArtifact::Request>();
 
-			std::string rover_name = this->get_parameter("rover_name").as_string();
-
-			remove_request->rover_name = rover_name;
+			remove_request->rover_name = rover_name_;
 			remove_request->artifact_x = request->artifact_x;
 			remove_request->artifact_y = request->artifact_y;
 			remove_request->artifact_z = request->artifact_z;
@@ -105,9 +101,7 @@ class Picker : public rclcpp::Node
 			
 			auto spawn_request = std::make_shared<custom_interfaces::srv::SpawnArtifact::Request>();
 
-			std::string rover_name = this->get_parameter("rover_name").as_string();
-
-			spawn_request->rover_name = rover_name;
+			spawn_request->rover_name = rover_name_;
 			spawn_request->spawn_x = 1.0; // spawn the artifact 1 meter in front of the rover's base_link frame
 			spawn_request->spawn_y = 0.0;
 			spawn_request->spawn_z = 0.0;
@@ -140,7 +134,13 @@ int main(int argc, char * argv[])
 {
 	rclcpp::init(argc, argv);
 
-	auto node = std::make_shared<Picker>();
+	if (argc < 2) {
+		RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Usage: picker <rover_name>");
+		return 1;
+	}
+
+	std::string rover_name = argv[1];
+	auto node = std::make_shared<Picker>(rover_name);
 
 	// a MultiThreadedExecutor is required here: pick_artifact_callback blocks its thread waiting
 	// on remove_artifact_client_'s future, and that future can only be fulfilled once the executor

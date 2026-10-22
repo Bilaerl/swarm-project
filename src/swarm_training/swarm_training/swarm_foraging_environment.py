@@ -3,7 +3,7 @@ import numpy as np
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Int32
+from std_msgs.msg import Float32
 from geometry_msgs.msg import Twist, Pose
 from sensor_msgs.msg import LaserScan
 from ros_gz_interfaces.msg import Entity
@@ -30,16 +30,22 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         # internal state tracking
         self._world_name = "swarm_world"
         self._rover_initial_poses = rovers_dict
-        self._is_carrying = {agent: 0 for agent in self.possible_agents}
         self._latest_lidar_scans = {agent: np.ones(8, dtype=np.float32) * 5.0 for agent in self.possible_agents}
+
+        self._latest_inventory_status = {agent: 0.0 for agent in self.possible_agents}
+        self._previous_inventory_status = {agent: 0.0 for agent in self.possible_agents}
+
         self._latest_nest_vectors = {agent: {"r":np.inf, "theta":np.inf} for agent in self.possible_agents}
+        self._previous_nest_vectors = {agent: {"r":np.inf, "theta":np.inf} for agent in self.possible_agents}
+
         self._latest_target_artifact_vectors = {agent: {"r":np.inf, "theta":np.inf} for agent in self.possible_agents}
+        self._previous_target_artifact_vectors = {agent: {"r":np.inf, "theta":np.inf} for agent in self.possible_agents}
 
         # ROS2 Publishers & Subscribers
         self._cmd_vel_pubs = {}
         for agent in self.possible_agents:
-            self.cmd_pubs[agent] = self.create_publisher(Twist, f"/{agent}/cmd_vel", 10)
-            self.create_subscription(Int32, f"/{agent}/rover_core/rover_inventory", lambda msg, a=agent: self._rover_inventory_callback(msg, a), 10)
+            self._cmd_vel_pubs[agent] = self.create_publisher(Twist, f"/{agent}/cmd_vel", 10)
+            self.create_subscription(Float32, f"/{agent}/rover_core/inventory_status", lambda msg, a=agent: self._inventory_status_callback(msg, a), 10)
             self.create_subscription(LaserScan, f"/{agent}/scan", lambda msg, a=agent: self._scan_callback(msg, a), 10)
             self.create_subscription(PolarVector, f"/{agent}/radio/nest_vector", lambda msg, a=agent: self._nest_vector_callback(msg, a), 10)
             self.create_subscription(PolarVector, f"/{agent}/rover_core/target_artifact_vector", lambda msg, a=agent: self._target_artifact_vector_callback(msg, a), 10)
@@ -55,12 +61,12 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
 
     def reset(self, seed=None, options=None):
         self.agents = self.possible_agents[:]
-        self._is_carrying = {agent: 0 for agent in self.possible_agents}
+        self._inventory_status = {agent: 0.0 for agent in self.possible_agents}
         
         # stop all rovers immediately
         for agent in self.agents:
             stop_twist = Twist()
-            self.cmd_pubs[agent].publish(stop_twist)
+            self._cmd_vel_pubs[agent].publish(stop_twist)
 
         # teleport rovers back to their starting spawn coordinates
         for agent in self.agents:
@@ -90,7 +96,7 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
             rclpy.spin_once(self, timeout_sec=0.01)
 
         # 5. Gather fresh observations
-        observations = {agent: self._get_observation(agent) for agent in self.agents}
+        observations = {agent: self._get_observation(agent)[0] for agent in self.agents}
         infos = {agent: {} for agent in self.agents}
         
         return observations, infos
@@ -101,7 +107,7 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
             twist = Twist()
             twist.linear.x = float(action[0])
             twist.angular.z = float(action[1])
-            self.cmd_pubs[agent].publish(twist)
+            self._cmd_vel_pubs[agent].publish(twist)
 
         # step ROS 2 event loop to advance Gazebo physics (100ms window)
         start_time = self.get_clock().now()
@@ -111,13 +117,8 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         observations, rewards, terminations, truncations, infos = {}, {}, {}, {}, {}
 
         for agent in self.agents:
-            obs = self._get_observation(agent)
-            observations[agent] = obs
-            
-            # simple reward calculation (Step penalty + collision penalty if LiDAR < 0.4m)
-            reward = -0.1
-            if np.any(self._latest_lidar_scans[agent] < 0.4):
-                reward -= 5.0
+            observation, reward = self._get_observation(agent)
+            observations[agent] = observation
             
             rewards[agent] = reward
             terminations[agent] = False
@@ -138,27 +139,53 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         return spaces.Box(low=np.array([-0.5, -1.0]), high=np.array([0.5, 1.0]), dtype=np.float32)
 
     def _get_observation(self, agent_id):
+        step_penalty = -0.05 # step penalty
+
         # get LiDAR bins
         lidar_obs = self._latest_lidar_scans[agent_id]
-        
-        # get relative nest beacon vector via TF2
-        r_nest, theta_nest = 0.0, 0.0
-        try:
-            trans = self.tf_buffer.lookup_transform(f"{agent_id}/base_link", "nest_link", rclpy.time.Time())
-            dx = trans.transform.translation.x
-            dy = trans.transform.translation.y
-            r_nest = np.sqrt(dx**2 + dy**2)
-            theta_nest = np.arctan2(dy, dx)
-        except Exception:
-            pass
+        collision_penalty = -5.0 if np.any(lidar_obs < 0.4) else 0.0
 
-        # placeholder artifact relative pose (x, y) from image processor cache
-        artifact_obs = np.array([0.0, 0.0], dtype=np.float32)
+        # inventory_status
+        latest_inventory_status = self._latest_inventory_status[agent_id]
+        agent_inventory_status = np.array([float(self._inventory_status[agent_id])], dtype=np.float32)
+
+        # inventory reward
+        previous_inventory_status = self._previous_inventory_status[agent_id]
+        inventory_reward = 0.0
+        if latest_inventory_status > previous_inventory_status: # picked up more artifact
+            inventory_reward = 10.0
+        elif latest_inventory_status < previous_inventory_status: # dropped artifact at nest
+            inventory_reward = 15.0
         
-        carrying_flag = np.array([float(self._is_carrying[agent_id])], dtype=np.float32)
+        # relative nest beacon vector
+        latest_nest_vector = self._latest_nest_vectors[agent_id]
+        nest_vector = np.array([latest_nest_vector["r"], latest_nest_vector["theta"]], dtype=np.float32)
+
+        # relative nest beacon reward
+        # the reward is scaled by agent inventory status,
+        # therefore the fuller the inventory, the more the agent is incentivise to go to nest
+        previous_nest_vector = self._previous_nest_vectors[agent_id]
+        nest_r_reward = latest_nest_vector["r"] - previous_nest_vector["r"]
+        nest_theta_reward = 0.1 * latest_nest_vector["theta"]
+        nest_vector_reward = latest_inventory_status * (nest_r_reward + nest_theta_reward)
+
+        # relative target artifact vector
+        latest_target_artifact_vector = self._latest_target_artifact_vectors[agent_id]
+        target_artifact_vector = np.array([latest_target_artifact_vector["r"], latest_target_artifact_vector["theta"]], dtype=np.float32)
+
+        # relative target artifact vector reward
+        # the reward is scaled by (1 - agent inventory status),
+        # therefore the emptier the inventory, the more the agent is incentivise to forage for more artifacts
+        previous_target_artifact_vector = self._previous_target_artifact_vectors[agent_id]
+        target_artifact_r_reward = latest_target_artifact_vector["r"] - previous_target_artifact_vector["r"]
+        target_artifact_theta_reward = 0.1 * latest_target_artifact_vector["theta"]
+        target_artifact_vector_reward = (1 - latest_inventory_status) * (target_artifact_r_reward + target_artifact_theta_reward)
 
         # concatenate into 13-dimensional observation vector
-        return np.concatenate([lidar_obs, artifact_obs, np.array([r_nest, theta_nest]), carrying_flag])
+        observation = np.concatenate([lidar_obs, target_artifact_vector, nest_vector, agent_inventory_status])
+        reward = step_penalty + collision_penalty + inventory_reward + nest_vector_reward + target_artifact_vector_reward
+
+        return observation, reward
 
     def _scan_callback(self, msg, agent_id):
         # bin 360-degree LiDAR scan into 8 directional sectors
@@ -167,14 +194,17 @@ class SwarmForagingEnvironment(ParallelEnv, Node):
         binned = np.array_split(ranges, 8)
         self._latest_lidar_scans[agent_id] = np.array([b.min() for b in binned], dtype=np.float32)
     
-    def _rover_inventory_callback(self, msg, agent_id):
-        pass
+    def _inventory_status_callback(self, msg, agent_id):
+        self._previous_inventory_status[agent_id] = self._latest_inventory_status[agent_id]
+        self._latest_inventory_status[agent_id] = msg.data
 
-    def _nest_vector_callback(msg, agent_id):
-        pass
+    def _nest_vector_callback(self, msg, agent_id):
+        self._previous_nest_vectors[agent_id] = self._latest_nest_vectors[agent_id].copy() # shallow copy of dict
+        self._latest_nest_vectors[agent_id] = {"r":msg.range, "theta":msg.theta}
 
-    def _target_artifact_vector_callback(msg, agent_id):
-        pass
+    def _target_artifact_vector_callback(self, msg, agent_id):
+        self._previous_nest_vectors[agent_id] = self._latest_nest_vectors[agent_id].copy() # shallow copy of dict
+        self._latest_nest_vectors[agent_id] = {"r":msg.range, "theta":msg.theta}
 
     def _call_artifact_manager_reset(self):
         req = ResetArtifacts.Request()

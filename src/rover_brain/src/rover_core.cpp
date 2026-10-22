@@ -28,8 +28,8 @@ class RoverCore : public rclcpp::Node
 				[this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {this->artifact_poses_subscription_callback_(msg);}
 			);
 			artifact_polar_vector_publisher_ = this->create_publisher<custom_interfaces::msg::PolarVector>("rover_core/target_artifact_vector", 10);
-			rover_inventory_status_publisher_ = this->create_publisher<std_msgs::msg::Float32>("rover_core/rover_inventory_status", 10);
-			inventory_status_publisher_timer_ = this->create_timer(100ms, [this]() { this->publish_inventory_status(); });
+			inventory_status_publisher_ = this->create_publisher<std_msgs::msg::Float32>("rover_core/inventory_status", 10);
+			inventory_status_publisher_timer_ = this->create_timer(100ms, [this]() { this->publish_inventory_status_(); });
 
 		}
 
@@ -38,7 +38,7 @@ class RoverCore : public rclcpp::Node
 		rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odometry_subscription_;
 		rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr artifact_poses_subscription_;
 		rclcpp::Publisher<custom_interfaces::msg::PolarVector>::SharedPtr artifact_polar_vector_publisher_;
-		rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr rover_inventory_status_publisher_;
+		rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr inventory_status_publisher_;
 		rclcpp::TimerBase::SharedPtr inventory_status_publisher_timer_;
 
 		const std::string rover_name_; // Name of the rover
@@ -169,10 +169,10 @@ class RoverCore : public rclcpp::Node
 
 		}
 		
-		void publish_inventory_status() {
+		void publish_inventory_status_() {
 			std_msgs::msg::Float32 inventory_msg;
 			inventory_msg.data = rover_inventory_ / max_inventory_;  // how full the inventory is (0 is empty, 1 is full)
-			rover_inventory_status_publisher_->publish(inventory_msg);
+			inventory_status_publisher_->publish(inventory_msg);
 		}
 
 };
